@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "ClearNet",
+    "slug": "clearnet-mobile",
+    "scheme": "clearnet",
+    "version": "1.3.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.clearnet.mobile",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "ClearNet exporte vos rapports d'audit (PDF) vers votre bibliothèque de photos.",
+        "NSFaceIDUsageDescription": "ClearNet utilise Face ID si activé."
+      }
+    },
+    "android": {
+      "package": "com.clearnet.mobile",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
+          },
+          "ios": {
+            "deploymentTarget": "13.0"
+          }
+        }
+      ],
+      "./plugins/withClearNetNative.js"
+    ]
+  }
+}

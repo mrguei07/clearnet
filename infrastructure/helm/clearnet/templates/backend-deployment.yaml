@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "clearnet.fullname" . }}-backend
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app: backend
+      clearnet-instance: {{ include "clearnet.fullname" . | quote }}
+  template:
+    metadata:
+      labels:
+        app: backend
+        clearnet-instance: {{ include "clearnet.fullname" . | quote }}
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.port }}
+              name: http
+            {{- if .Values.backend.metrics.enabled }}
+            - containerPort: {{ .Values.backend.metrics.port }}
+              name: metrics
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "clearnet.fullname" . }}-backend-config
+          env:
+            - name: JWT_SECRET
+              {{ if .Values.backend.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.existingSecret | quote }}
+                  key: jwt-secret
+              {{ else }}
+              value: {{ .Values.backend.jwtSecret | quote }}
+              {{ end }}
+            - name: NEO4J_USER
+              value: {{ .Values.neo4j.authUser | quote }}
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{ if .Values.neo4j.existingSecret }}
+                  name: {{ .Values.neo4j.existingSecret | quote }}
+                  {{ else }}
+                  name: {{ include "clearnet.fullname" . }}-neo4j-secret
+                  {{ end }}
+                  key: password
+            - name: ITAR_ENABLED
+              value: {{ .Values.backend.env.ITAR_ENABLED | quote }}
+            # ---- V1.4 : clés secrètes via le Secret existant (clés absentes
+            #      = feature off, optional: true évite le crash du pod) ----
+            # STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / SIGNATURE_2FA_SECRET
+            {{- if .Values.backend.existingSecret }}
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.existingSecret | quote }}
+                  key: stripe-secret-key
+                  optional: true
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.existingSecret | quote }}
+                  key: stripe-webhook-secret
+                  optional: true
+            - name: SIGNATURE_2FA_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.existingSecret | quote }}
+                  key: signature-2fa-secret
+                  optional: true
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.backend.probes.startupDelaySeconds }}
+            periodSeconds: {{ .Values.backend.probes.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}

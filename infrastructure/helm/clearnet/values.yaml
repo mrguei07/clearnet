@@ -1,0 +1,117 @@
+# ---------------------------------------------------------------------------
+# Valeurs ClearNet Chart — production hardening (Phase 2)
+# Règle d'or : tous les flags de durcissement (ITAR/OFAC, oracles, ZK) sont
+# DÉSACTIVÉS par défaut ; ne les activez qu'après mise en place des clés et
+# approbation conformité (voir PHASE2_DEPLOYMENT.md).
+# ---------------------------------------------------------------------------
+
+backend:
+  image:
+    repository: ghcr.io/clearnet/backend
+    tag: v1.2.0
+    pullPolicy: IfNotPresent
+  replicas: 2
+  port: 3000
+  env:
+    NODE_ENV: production
+    PORT: "3000"
+    # Flags de durcissement — défaut OFF (règle d'or phase 2)
+    ITAR_ENABLED: "false"
+    OFAC_API_KEY: ""
+    OFAC_CSV_PATH: ""
+    ORACLES_ENABLED: "false"
+    STORMGLASS_API_KEY: ""
+    SPACE_TRACK_USER: ""
+    SPACE_TRACK_PASSWORD: ""
+    ZK_ENABLED: "false"
+    VERIFIER_ADDRESS: ""
+    BLOCKCHAIN_RPC_URL: ""
+    # File BullMQ (V1.3) — défaut OFF (fire-and-forget préservé)
+    QUEUE_ENABLED: "false"
+    REDIS_HOST: "redis"
+    REDIS_PORT: "6379"
+    REDIS_PASSWORD: ""
+    # Notification Slack des échecs définitifs de règlement (3.3) — vide = off
+    SLACK_WEBHOOK_URL: ""
+    # API de démo partenaire — clé vide = accès verrouillé
+    DEMO_API_KEY: ""
+  queue:
+    enabled: false
+    attempts: 5
+    backoffMs: 5000
+  # ---- V1.4 (règle d'or : tout OFF par défaut ; clés jamais dans values) ----
+  adminEmails: ""                       # Axe 1 — CSV, vide = DLQ admin désactivée
+  metrics:
+    enabled: false                      # Axe 5 — /metrics prom-client
+    port: 3001
+    pollBalanceMs: 300000               # angle mort 3.4 — solde ETH multisig
+  billing:
+    enabled: false                      # Axe 2 — Stripe (freemium → Pro)
+    pricePro: ""                        # Price ID du plan Pro
+    freeQuota: 10
+    successUrl: "clearnet://billing?ok=1"
+    cancelUrl: "clearnet://billing"
+    webhookIps: ""                      # angle mort 3.5 — repli CSV allowlist
+  multisig:
+    enabled: false                      # Axe 4 — 2/3 (false = règlement direct)
+    address: ""
+    pendingMaxMs: 14400000              # angle mort 3.1 — alerte Slack > 4 h
+  earlyAdopter:
+    enabled: false                      # angle mort 3.6 — exemption quota FREE
+  jwtSecret: "clearnet-dev-secret-change-me"
+  # Secret Kubernetes EXISTANT contenant la clé "jwt-secret" (3.4) — si non
+  # vide, il est utilisé à la place de `jwtSecret` (jamais de secret en --set
+  # en production : kubectl create secret / SealedSecrets / ExternalSecrets).
+  existingSecret: ""
+  throttling:
+    enabled: true
+    ttlMs: 60000
+    limit: 100
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  probes:
+    startupDelaySeconds: 20
+    periodSeconds: 10
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    cpuUtilization: 70
+  ingress:
+    enabled: true
+    className: nginx
+    host: clearnet.local
+    tlsSecret: ""
+
+# V1.4 Axe 5 — kube-prometheus-stack / Prometheus Operator
+prometheus:
+  enabled: false
+  alerts:
+    enabled: false
+
+neo4j:
+  image: neo4j:5.26-community
+  replicas: 1
+  authEnabled: true
+  authUser: neo4j
+  authPassword: "change-me-neo4j"
+  # Secret Kubernetes EXISTANT avec les clés "password" (pour le backend) et
+  # "auth" (valeur NEO4J_AUTH complète, ex. "neo4j/<mot de passe>") (3.4).
+  existingSecret: ""
+  storage:
+    size: 10Gi
+    storageClass: ""
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits: { cpu: "2", memory: 1Gi }
+  persistence: true
+
+blockchain:
+  enabled: false
+  image: node:20-bullseye
+  command: ["npx", "--yes", "hardhat@2.19.4", "node", "--hostname", "0.0.0.0"]
+  port: 8545
+
+nameOverride: ""
+fullnameOverride: ""

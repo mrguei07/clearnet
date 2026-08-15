@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clearnet.fullname" . }}-backend-config
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+data:
+  NODE_ENV: {{ .Values.backend.env.NODE_ENV | quote }}
+  PORT: {{ .Values.backend.env.PORT | quote }}
+  NEO4J_URI: {{ printf "bolt://%s-neo4j:7687" (include "clearnet.fullname" .) | quote }}
+  ITAR_ENABLED: {{ .Values.backend.env.ITAR_ENABLED | quote }}
+  ORACLES_ENABLED: {{ .Values.backend.env.ORACLES_ENABLED | quote }}
+  ZK_ENABLED: {{ .Values.backend.env.ZK_ENABLED | quote }}
+  ORACLE_TIMEOUT_MS: "2500"
+  THROTTLE_TTL: {{ .Values.backend.throttling.ttlMs | quote }}
+  THROTTLE_LIMIT: {{ .Values.backend.throttling.limit | quote }}
+  # ---- Industrialisation V1.3 : file BullMQ + verrouillage démo ----
+  QUEUE_ENABLED: {{ .Values.backend.env.QUEUE_ENABLED | quote }}
+  REDIS_HOST: {{ .Values.backend.env.REDIS_HOST | quote }}
+  REDIS_PORT: {{ .Values.backend.env.REDIS_PORT | quote }}
+  REDIS_PASSWORD: {{ .Values.backend.env.REDIS_PASSWORD | quote }}
+  QUEUE_ATTEMPTS: {{ .Values.backend.queue.attempts | quote }}
+  QUEUE_BACKOFF_MS: {{ .Values.backend.queue.backoffMs | quote }}
+  DEMO_API_KEY: {{ .Values.backend.env.DEMO_API_KEY | quote }}
+  # Notification des échecs définitifs de règlement (3.3) — vide = désactivée
+  SLACK_WEBHOOK_URL: {{ .Values.backend.env.SLACK_WEBHOOK_URL | quote }}
+  # ---- V1.4 (tous les flags OFF par défaut ; clés secrètes JAMAIS ici,
+  #      via backend.existingSecret — cf. README-PROD.md §5) ----
+  ADMIN_EMAILS: {{ .Values.backend.adminEmails | quote }}
+  METRICS_ENABLED: {{ .Values.backend.metrics.enabled | ternary "true" "false" | quote }}
+  METRICS_PORT: {{ .Values.backend.metrics.port | quote }}
+  METRICS_POLL_BALANCE_MS: {{ .Values.backend.metrics.pollBalanceMs | quote }}
+  BILLING_ENABLED: {{ .Values.backend.billing.enabled | ternary "true" "false" | quote }}
+  STRIPE_PRICE_PRO: {{ .Values.backend.billing.pricePro | quote }}
+  BILLING_FREE_QUOTA: {{ .Values.backend.billing.freeQuota | quote }}
+  BILLING_SUCCESS_URL: {{ .Values.backend.billing.successUrl | quote }}
+  BILLING_CANCEL_URL: {{ .Values.backend.billing.cancelUrl | quote }}
+  STRIPE_WEBHOOK_IPS: {{ .Values.backend.billing.webhookIps | quote }}
+  EARLY_ADOPTER_ENABLED: {{ .Values.backend.earlyAdopter.enabled | ternary "true" "false" | quote }}
+  MULTISIG_ENABLED: {{ .Values.backend.multisig.enabled | ternary "true" "false" | quote }}
+  MULTISIG_ADDRESS: {{ .Values.backend.multisig.address | quote }}
+  MULTISIG_PENDING_MAX_MS: {{ .Values.backend.multisig.pendingMaxMs | quote }}

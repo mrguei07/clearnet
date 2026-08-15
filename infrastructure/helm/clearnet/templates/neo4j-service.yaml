@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clearnet.fullname" . }}-neo4j
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app: neo4j
+  ports:
+    - name: http
+      port: 7474
+      targetPort: http
+    - name: bolt
+      port: 7687
+      targetPort: bolt

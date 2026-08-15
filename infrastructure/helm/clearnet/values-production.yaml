@@ -1,0 +1,135 @@
+# ---------------------------------------------------------------------------
+# ClearNet — Valeurs de PRODUCTION (overrides du chart helm/clearnet)
+# Usage : helm upgrade --install clearnet helm/clearnet -f helm/clearnet/values-production.yaml
+#        (voir scripts/clearner-prod.sh / clearner-prod.ps1 et README-PROD.md)
+# ---------------------------------------------------------------------------
+# IMPORTANT :
+#  - JWT_SECRET, NEO4J_PASSWORD et REDIS_PASSWORD ne sont JAMAIS commités :
+#    passez-les via --set ou un gestionnaire de secrets (cf. README-PROD.md).
+#  - Les flags de durcissement (ITAR/OFAC, oracles, ZK) restent OFF : activez
+#    uniquement après provisionnement des clés (PHASE2_DEPLOYMENT.md).
+# ---------------------------------------------------------------------------
+
+backend:
+  image:
+    repository: ghcr.io/clearnet/backend
+    tag: v1.4.0
+    pullPolicy: IfNotPresent
+
+  # ---- V1.4 : DLQ admin, métriques, billing Stripe, multisig ----
+  # (tous off par défaut ; ne passez en true qu'après provisionnement des clés)
+  adminEmails: ""            # ex: "ops@clearnet.example, cto@clearnet.example"
+  metrics:
+    enabled: true            # /metrics prom-client (Axe 5)
+    port: 3001
+    pollBalanceMs: 300000    # angle mort 3.4 : solde multisig toutes les 5 min
+  billing:
+    enabled: true            # Stripe (Axe 2) — false pour rétrocompat pure
+    pricePro: ""             # ⚠️ Price ID Stripe du plan Pro (mode test d'abord)
+    freeQuota: 10
+    successUrl: "clearnet://billing?ok=1"
+    cancelUrl: "clearnet://billing"
+    webhookIps: ""           # angle mort 3.5 : repli CSV si le fetch des IP Stripe échoue
+  multisig:
+    enabled: false           # Axe 4 : passer à true après déploiement du multisig
+    address: ""
+    pendingMaxMs: 14400000   # angle mort 3.1 : alerte si soumission PENDING > 4 h
+  earlyAdopter:
+    enabled: false           # angle mort 3.6 : exemption quota FREE des isEarlyAdopter
+
+  # Haute disponibilité : 3 réplicas, HPA 3 → 8 (CPU 65 %)
+  replicas: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    cpuUtilization: 65
+
+  resources:
+    requests: { cpu: 500m, memory: 512Mi }
+    limits: { cpu: "2", memory: 1Gi }
+
+  env:
+    NODE_ENV: production
+    PORT: "3000"
+    # Durcissement — OFF par défaut (à activer avec les clés dédiées)
+    ITAR_ENABLED: "false"
+    OFAC_API_KEY: ""
+    OFAC_CSV_PATH: ""
+    ORACLES_ENABLED: "false"
+    STORMGLASS_API_KEY: ""
+    SPACE_TRACK_USER: ""
+    SPACE_TRACK_PASSWORD: ""
+    ZK_ENABLED: "false"
+    VERIFIER_ADDRESS: ""
+    BLOCKCHAIN_RPC_URL: ""
+    # File BullMQ de production : activée — Redis requis dans le cluster
+    # (subchart bitnami/redis, service externe, ou Helm Redis en amont).
+    QUEUE_ENABLED: "true"
+    REDIS_HOST: "clearnet-redis-master"   # ⚠️ à ajuster selon votre déploiement Redis
+    REDIS_PORT: "6379"
+    REDIS_PASSWORD: ""                    # ⚠️ via --set backend.env.REDIS_PASSWORD=…
+    # Notification Slack des échecs définitifs de règlement (3.3) — vide = off
+    SLACK_WEBHOOK_URL: ""                 # ⚠️ webhook de notification (optionnel)
+    # API de démo partenaire verrouillée (clé vide → 401 systématique)
+    DEMO_API_KEY: ""
+
+  queue:
+    enabled: true
+    attempts: 5          # retries exponentielles par règlement on-chain
+    backoffMs: 5000      # délai initial (×2 à chaque tentative)
+
+  throttling:
+    enabled: true
+    ttlMs: 60000
+    limit: 300           # 300 req/min/pod en prod (défaut dev : 100)
+
+  probes:
+    startupDelaySeconds: 30
+    periodSeconds: 10
+
+  ingress:
+    enabled: true
+    className: nginx
+    host: api.clearnet.example.com   # ⚠️ à remplacer par le FQDN réel
+    tlsSecret: "clearnet-tls"        # ⚠️ cert-manager / secret TLS à créer
+
+# JWT_SECRET (exemple — À REMPLACER) :
+#   helm upgrade … --set backend.jwtSecret="$(openssl rand -hex 32)"
+# Recommandé en production (3.4) : injecter un Secret Kubernetes existant —
+#   kubectl create secret generic clearnet-secrets \
+#     --from-literal=jwt-secret="$(openssl rand -hex 32)" \
+#     --from-literal=password="$(openssl rand -hex 16)" \
+#     --from-literal=auth="neo4j/$(openssl rand -hex 16)"
+#   helm upgrade … --set backend.existingSecret=clearnet-secrets \
+#     --set neo4j.existingSecret=clearnet-secrets
+#   (ou SealedSecrets / ExternalSecrets — cf. README-PROD.md §5)
+
+neo4j:
+  image: neo4j:5.26-community
+  replicas: 1
+  authEnabled: true
+  authUser: neo4j
+  authPassword: ""                     # ⚠️ via --set neo4j.authPassword=…
+  existingSecret: ""                   # ⚠️ Secret existant (clés password + auth)
+  storage:
+    size: 20Gi
+    storageClass: ""                   # classe de stockage du cluster
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+  persistence: true
+
+# Nœud Hardhat intégré : désactivé en production (le pont vise Sepolia/mainnet).
+blockchain:
+  enabled: false
+
+# V1.4 Axe 5 : observabilité Prometheus (kube-prometheus-stack dont le release
+# s'appelle "prometheus") — ServiceMonitor + PrometheusRule
+prometheus:
+  enabled: true
+  alerts:
+    enabled: true
+
+nameOverride: ""
+fullnameOverride: ""

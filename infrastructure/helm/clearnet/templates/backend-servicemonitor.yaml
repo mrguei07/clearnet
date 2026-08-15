@@ -1,0 +1,20 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "clearnet.fullname" . }}-backend
+  labels:
+    app.kubernetes.io/name: {{ include "clearnet.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: prometheus        # kube-prometheus-stack (adapter au CRD cible)
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "clearnet.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scheme: http
+{{- end }}

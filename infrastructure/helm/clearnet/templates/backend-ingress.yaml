@@ -1,0 +1,29 @@
+{{- if .Values.backend.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "clearnet.fullname" . }}-backend
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+spec:
+  ingressClassName: {{ .Values.backend.ingress.className | quote }}
+  {{- if .Values.backend.ingress.tlsSecret }}
+  tls:
+    - hosts:
+        - {{ .Values.backend.ingress.host }}
+      secretName: {{ .Values.backend.ingress.tlsSecret }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.backend.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "clearnet.fullname" . }}-backend
+                port:
+                  number: 80
+{{- end }}

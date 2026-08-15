@@ -1,0 +1,14 @@
+apiVersion: v2
+name: clearnet
+description: "ClearNet — deployment production-hardening (Phase 2) : backend NestJS, Neo4j, devnet Hardhat, HPA, Ingress. Feature flags ZK/ITAR/Oracles désactivés par défaut."
+type: application
+version: 2.0.0
+appVersion: "1.2.0"
+home: https://clearnet.example.invalid
+keywords:
+  - logistics
+  - compensation
+  - nestjs
+  - neo4j
+  - hardhat
+  - zk

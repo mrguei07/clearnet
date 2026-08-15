@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearNet — Rapport technique V1.3</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #5b6b81;
+    --line: #dfe5ee;
+    --accent: #0e5cb8;
+    --accent-soft: #e7f0fb;
+    --green: #1c7c3c;
+    --green-soft: #e6f4ea;
+    --amber: #9a6b00;
+    --amber-soft: #fdf3dc;
+    --red: #b3261e;
+    --red-soft: #fdecea;
+    --mono: "Consolas", "Cascadia Mono", monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+  header.hero {
+    background: linear-gradient(135deg, #0b2545 0%, #0e5cb8 70%, #1783c9 100%);
+    color: #fff;
+    padding: 42px 40px 30px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: .5px; }
+  header.hero .sub { opacity: .92; font-size: 15px; }
+  header.hero .meta { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.35);
+  }
+  nav.toc {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 40px;
+    position: sticky; top: 0; z-index: 10;
+    box-shadow: 0 2px 8px rgba(15,40,80,.06);
+  }
+  nav.toc a { color: var(--accent); text-decoration: none; margin-right: 14px; font-size: 13px; font-weight: 600; }
+  nav.toc a:hover { text-decoration: underline; }
+  main { max-width: 1080px; margin: 0 auto; padding: 26px 20px 60px; }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 22px;
+  }
+  h2 {
+    font-size: 21px;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent-soft);
+    color: #0b2545;
+  }
+  h3 { font-size: 16.5px; margin: 22px 0 8px; color: #0e3f7a; }
+  h4 { font-size: 14.5px; margin: 16px 0 6px; color: var(--ink); }
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0 10px; padding-left: 22px; }
+  li { margin: 3px 0; }
+  code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: #eef2f7;
+    border: 1px solid #e0e6ee;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: #0f1b2d;
+    color: #d7e3f4;
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  pre code { background: none; border: none; color: inherit; padding: 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 10px 0 14px;
+  }
+  th {
+    background: var(--accent-soft);
+    color: #0b2f5e;
+    text-align: left;
+    padding: 7px 10px;
+    border: 1px solid #c9d9ef;
+    font-weight: 700;
+  }
+  td {
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 4px;
+    font-size: 11px; font-weight: 700; font-family: var(--mono);
+  }
+  .tag.get  { background: #e2f2ff; color: #0a5da8; }
+  .tag.post { background: #e6f4ea; color: #1c7c3c; }
+  .tag.auth { background: #fdf3dc; color: #9a6b00; }
+  .tag.pub  { background: #eef2f7; color: #5b6b81; }
+  .ok  { color: var(--green); font-weight: 600; }
+  .ko  { color: var(--red); font-weight: 600; }
+  .warn{ color: var(--amber); font-weight: 600; }
+  .box {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    margin: 12px 0;
+  }
+  .box.warn { border-color: var(--amber); background: var(--amber-soft); }
+  .box.danger { border-color: var(--red); background: var(--red-soft); }
+  .box.ok { border-color: var(--green); background: var(--green-soft); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } nav.toc a { display: inline-block; margin-bottom: 4px; } }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12.5px;
+    padding: 20px;
+  }
+  .badge-table td:first-child { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>ClearNet — Rapport technique détaillé</h1>
+  <div class="sub">Plateforme de compensation décentralisée inter-entreprises (netting bilatéral) — état du dépôt, architecture, contrats, API, sécurité, déploiement.</div>
+  <div class="meta">
+    <span class="pill">Version 1.3.0</span>
+    <span class="pill">Backend NestJS 10</span>
+    <span class="pill">Solidity 0.8.19</span>
+    <span class="pill">Neo4j 5.26</span>
+    <span class="pill">Expo 49 / RN 0.72</span>
+    <span class="pill">Docker + Helm</span>
+    <span class="pill">Rapport du 2026-08-11</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#s1">1. Vue d'ensemble</a>
+  <a href="#s2">2. Architecture</a>
+  <a href="#s3">3. Arborescence</a>
+  <a href="#s4">4. Backend</a>
+  <a href="#s5">5. Blockchain</a>
+  <a href="#s6">6. Infrastructure</a>
+  <a href="#s7">7. Mobile</a>
+  <a href="#s8">8. Durcissement Phase 2</a>
+  <a href="#s9">9. Flux de règlement</a>
+  <a href="#s10">10. Configuration</a>
+  <a href="#s11">11. Validation</a>
+  <a href="#s12">12. Déploiement</a>
+  <a href="#s13">13. Limites & perspectives</a>
+</nav>
+
+<main>
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+<h2>1. Vue d'ensemble</h2>
+<p><strong>ClearNet</strong> est un moteur de compensation décentralisée : les entreprises
+échangent des créances et des dettes bilatérales, et le système calcule et exécute une
+<strong>compensation nette</strong> (netting) — sans mouvement de trésorerie systématique.
+Le registre des positions nettes est porté par une blockchain (Ethereum, testnet Sepolia),
+les transactions sont servies par une API NestJS adossée à un graphe Neo4j, et le tout est
+packagé pour le déploiement cloud (Docker Compose en dev, Helm en production).</p>
+
+<table>
+  <tr><th>Composant</th><th>Technologie</th><th>Rôle</th></tr>
+  <tr><td><code>clearnet-backend</code></td><td>NestJS 10, TypeScript 5.4, ethers 6.13, snarkjs 0.7, neo4j-driver 5.8</td><td>API REST, authentification JWT, conformité, oracles, ZK, pont on-chain</td></tr>
+  <tr><td><code>clearnet-blockchain</code></td><td>Hardhat 2.19, Solidity 0.8.19, OpenZeppelin</td><td>Contrats : <code>ClearNetToken</code>, <code>CompensationEngine</code>, <code>ChainlinkPriceFeed</code>, <code>IZkVerifier</code></td></tr>
+  <tr><td><code>clearnet-mobile</code></td><td>Expo 49 / React Native 0.72</td><td>Application mobile V1.3 : auth sectorielle, transactions offline-first, réseau temps réel (Force Graph)</td></tr>
+  <tr><td><code>infrastructure</code></td><td>Docker Compose, Helm (Kubernetes)</td><td>Orchestration Neo4j + backend, chart <code>clearnet</code></td></tr>
+  <tr><td><code>Neo4j 5.26</code></td><td>Base graphe</td><td>Utilisateurs, entreprises, transactions et relations SENT/RECEIVED</td></tr>
+</table>
+
+<div class="box ok"><strong>Règle d'or du dépôt</strong> : toutes les fonctions de durcissement
+(ITAR/OFAC, oracles, preuves ZK, pont on-chain) sont <strong>désactivées par défaut</strong>
+par feature-flag ; la plateforme reste 100&nbsp;% fonctionnelle et identique à la V1.1 tant
+qu'aucun flag n'est activé.</div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+<h2>2. Architecture globale</h2>
+<pre>
+┌──────────────────────────┐        ┌──────────────────────────────┐
+│  clearnet-mobile V1.3    │        │  clearnet-backend (NestJS)   │
+│  (Expo / RN 0.72)        │  HTTP  │  auth · users · companies    │
+│  Login · Register · Home │ ──────▶│  transactions (+Gateway WS)  │
+│  Transactions · Réseau   │  /api  │  graph/egonet · demo         │
+│  offline-first (SQLite)  │        │  compliance · oracles        │
+└──────────┬───────────────┘        │  zkproof · blockchain        │
+           │ socket.io namespace    │  (ValidationPipe · JWT ·     │
+           │ /transactions (JWT)    │   Throttler 100 req/60s)     │
+           └───────────────────────▶└──────┬──────────────┬────────┘
+                                            │              │
+                             bolt://7687    │  ethers 6    │ fetch (timeout 2.5 s)
+                                            ▼              ▼
+                            ┌────────────────┐  ┌────────────────────────────┐
+                            │  Neo4j 5.26    │  │  Blockchain                │
+                            │  User ─ SENT/  │  │  Sepolia (or hardhat node) │
+                            │  RECEIVED ─▶   │  │  CompensationEngine +      │
+                            │  Transaction   │  │  CLRN Token                │
+                            └────────────────┘  └────────────────────────────┘
+                            ┌────────────────────────────────────┐
+                            │  Oracles sectoriels                │
+                            │  Stormglass · Space-Track ·        │
+                            │  ClinicalTrials.gov                │
+                            └────────────────────────────────────┘
+              docker-compose.yml (neo4j + backend, healthchecks)
+              helm/clearnet (deployments, HPA, ingress, statefulset)
+</pre>
+
+<p>Les transactions sont créées côté API (persistance Neo4j) puis, si le pont est activé
+(<code>ONCHAIN_ENABLED=true</code>), <strong>réglées en arrière-plan</strong> sur le
+<code>CompensationEngine</code> (netting de positions, sans transfert ERC20). Le backend agit
+comme <strong>opérateur admin</strong> du moteur de compensation : il enregistre les positions
+nettes et exécute les règlements avec la même clé que le déploiement des contrats.</p>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+<h2>3. Arborescence du dépôt</h2>
+<h3>3.1 Racine — documentation livrable</h3>
+<pre>
+C:\dev\ClearNet\
+├── README.md                        # Démarrage Mac/Windows (Docker, backend, hardhat, mobile)
+├── README-DEMO.md                   # Scénario de démonstration complet (seed + API + mobile)
+├── rapport.html                     # Rapport de synthèse V1.2 (pages web)
+├── PHASE2_RESPONSE.md               # Livrable Phase 2 (ITAR/OFAC, oracles, ZK) — diffs + fichiers
+├── PHASE2_DEPLOYMENT.md             # Procédure opérationnelle Phase 2
+├── PONT_SEPOLIA_RESPONSE.md         # Livrable pont on-chain + déploiement Sepolia (diffs, fichiers)
+├── PONT_SEPOLIA_DEPLOYMENT.md       # Procédure opérationnelle Sepolia (prérequis → registre)
+├── CLEARNET-V1.1-REMEDIATION.md     # Correctifs V1.1 (sécurité, transactions, Docker)
+├── SECTOR_EXTENSION.md              # Livrable extension sectorielle (Maritime/Spatial/Biotech)
+└── infrastructure\                  # cf. §6
+</pre>
+
+<h3>3.2 Backend (<code>clearnet-backend/src</code>, 52 fichiers TS — 12 modules)</h3>
+<pre>
+src\
+├── main.ts                    # Bootstrap : /api, CORS, ValidationPipe strict, port 3000
+├── app.module.ts              # 12 modules + Throttler global + ConfigModule global
+├── app.controller.ts          # GET /api, GET /api/health (vérifie connectivité Neo4j)
+├── app.service.ts
+├── auth\                      # JWT : register/login/profile, strategy, guards, DTOs
+├── users\                     # UsersService (create/findByEmail/findById, ROI V1.3), GET /api/users/me + /users/roi
+├── transactions\              # create + history, règlement on-chain fire-and-forget + Gateway WS (transaction:status)
+│   └── dto\create-transaction.dto.ts
+├── company\                   # Référentiel 15 secteurs, companies CRUD, industries (stats)
+│   ├── company.entity.ts      # Enum Industry (12 v1 + 3 v1.1), détail par secteur
+│   ├── companies.service.ts   # + spec Jest
+│   ├── companies.controller.ts
+│   ├── industries.controller.ts
+│   └── dto\create-company.dto.ts
+├── compliance\                # ITAR/OFAC (flag ITAR_ENABLED) + guards itar/ofac
+├── oracles\                   # OracleService 3 API + OracleController (tests manuels)
+├── zkproof\                   # ZkProofService (snarkjs Groth16) + module
+├── graph\                     # GraphService : egonet (Force Graph mobile) + urgence de cycle (oracle ou fallback 3 j)
+├── blockchain\                # PONT : constants (ABI), types, service (ethers), controller
+├── demo\                      # Seed de démo (X-Demo-Key) : alice/bob/carol + 3 transactions
+├── neo4j\                     # Module GLOBAL : injection du driver bolt://
+├── common\guards\             # rate-limit.guard.ts (global), demo-api-key.guard.ts
+└── types\snarkjs.d.ts         # Déclaration de module snarkjs
+</pre>
+
+<h3>3.3 Blockchain (<code>clearnet-blockchain</code>)</h3>
+<pre>
+clearnet-blockchain\
+├── contracts\
+│   ├── ClearNetToken.sol      # ERC20 CLRN (mint owner / burn user) — OZ
+│   ├── CompensationEngine.sol # Netting : updatePosition, settle, settleWithProof, setZkSettings
+│   ├── ChainlinkPriceFeed.sol # Oracle de prix ETH/BTC/XAU/USD (stale guard 24 h)
+│   └── interfaces\IZkVerifier.sol  # Groth16 verifyProof(uint256[2] input)
+├── scripts\
+│   ├── deploy.ts              # Déploiement local (hardhat node)
+│   ├── deploy-sepolia.ts      # Déploiement Sepolia (garde-fou ≥ 0.05 ETH, deployments/sepolia.json)
+│   ├── verify-sepolia.ts      # Vérification Etherscan
+│   └── validate-sepolia.ts    # Bout-en-bout : mint → positions → settle → contrôle 0/0
+├── test\compensation.test.ts  # Tests Hardhat (dette TS : @types/mocha absent)
+├── hardhat.config.ts          # Réseaux : localhost, clearnet, sepolia + plugin Etherscan
+├── .env.example               # RPC_URL, PRIVATE_KEY, SEPOLIA_*, ETHERSCAN_API_KEY
+└── package.json               # Scripts : node, deploy, deploy:sepolia, verify:sepolia, validate:sepolia
+</pre>
+
+<h3>3.4 Infrastructure & mobile</h3>
+<pre>
+infrastructure\
+├── docker-compose.yml         # neo4j:5.26 + backend (healthchecks, volume neo4j-data)
+├── .env.example               # NEO4J_PASSWORD, JWT_SECRET, DEMO_API_KEY, flags Phase 2
+├── test-e2e.sh / test-e2e.ps1 # Smoke tests e2e (Windows / Linux)
+└── helm\clearnet\
+    ├── Chart.yaml · values.yaml · _helpers.tpl
+    └── templates\
+        ├── backend-deployment.yaml · backend-configmap.yaml · backend-service.yaml
+        ├── backend-ingress.yaml · backend-hpa.yaml
+        ├── neo4j-statefulset.yaml · neo4j-service.yaml · neo4j-secret.yaml
+        └── blockchain-deployment.yaml · blockchain-service.yaml
+
+clearnet-mobile\
+├── App.tsx                     # Tabs Accueil / Transactions / Réseau, persistance AsyncStorage (token, email, industrie)
+├── package.json                # expo ~49.0.21, RN 0.72.10, socket.io-client, netinfo, expo-sqlite, react-native-svg
+├── plugins\withClearNetNative.js # Config plugin (permissions Android/iOS, cleartext dev)
+└── src\
+    ├── api\client.ts               # fetch wrapper typé, base URL par plateforme
+    ├── components\ForceGraph.tsx   # Force graph SVG (react-native-svg)
+    ├── constants\industries.ts     # 15 secteurs (miroir backend) + palettes de thème
+    ├── contexts\ThemeContext.tsx   # Thème dynamique sectoriel
+    ├── db\initDb.ts                # SQLite : table pending_transactions
+    ├── services\LocalTransactionService.ts  # CRUD offline-first
+    ├── hooks\useBackgroundSync.ts          # Rejeu des paiements au retour réseau (NetInfo)
+    ├── hooks\useTransactionWebSocket.ts    # Socket.io namespace /transactions
+    └── screens\LoginScreen.tsx · RegisterScreen.tsx · HomeScreen.tsx
+        · TransactionsScreen.tsx · GraphScreen.tsx
+</pre>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+<h2>4. Backend NestJS — analyse détaillée</h2>
+
+<h3>4.1 Bootstrap et conventions (<code>main.ts</code>)</h3>
+<ul>
+  <li>Préfixe global <code>/api</code> ; CORS ouvert (<code>origin: true, credentials: true</code>).</li>
+  <li><code>ValidationPipe</code> strict : <code>whitelist + transform + forbidNonWhitelisted</code> — les champs inconnus rejettent la requête.</li>
+  <li>Rate limiting global via <code>ThrottlerModule</code> : 100 requêtes / 60 s par défaut (<code>THROTTLE_TTL</code>, <code>THROTTLE_LIMIT</code>), appliqué par <code>RateLimitGuard</code> (APP_GUARD).</li>
+  <li>Log de démarrage affichant le régime de rate-limit et l'état du pont (<code>BLOCKCHAIN_ENABLED</code>).</li>
+  <li><code>ConfigModule.forRoot({ isGlobal: true })</code> — toutes les variables d'environnement sont lues à travers <code>ConfigService</code>.</li>
+</ul>
+
+<h3>4.2 Modules (12) et responsabilités</h3>
+<table>
+  <tr><th>Module</th><th>Rôle</th><th>Dépendances notables</th></tr>
+  <tr><td><code>Neo4jModule</code> (Global)</td><td>Fournit <code>NEO4J_DRIVER</code> (bolt://, auth basic), fermeture propre au shutdown</td><td>ConfigService</td></tr>
+  <tr><td><code>AuthModule</code></td><td>Inscription / connexion / profil JWT, bcrypt (10 rounds), <code>JwtStrategy</code> + <code>JwtAuthGuard</code>, décorateur <code>@CurrentUser()</code></td><td>Users, Config (JWT_SECRET)</td></tr>
+  <tr><td><code>UsersModule</code></td><td>CRUD minimal : <code>findByEmail</code>, <code>findById</code>, <code>create</code> ; <code>GET /api/users/me</code></td><td>Neo4j</td></tr>
+  <tr><td><code>TransactionsModule</code></td><td>Création (compliance préalable) + historique ; règlement on-chain asynchrone</td><td>Blockchain, Compliance, Users</td></tr>
+  <tr><td><code>CompanyModule</code></td><td>Référentiel secteurs (15), entreprises, statistiques par secteur</td><td>Neo4j</td></tr>
+  <tr><td><code>ComplianceModule</code></td><td>Screening OFAC (3 sources) + restrictions ITAR (pays × secteurs) ; guards <code>ItarGuard</code>/<code>OfacGuard</code></td><td>Config (ITAR_ENABLED, OFAC_*)</td></tr>
+  <tr><td><code>OracleModule</code></td><td>Oracles sectoriels : Stormglass (maritime), Space-Track (spatial), ClinicalTrials.gov (biotech) — timeout 2,5 s, fallback strict</td><td>Config (ORACLES_ENABLED)</td></tr>
+  <tr><td><code>ZkProofModule</code></td><td>Génération/vérification de preuves Groth16 via snarkjs (import dynamique) ; ABI vérificateur input[2]</td><td>Config (ZK_ENABLED, ZK_ARTIFACTS_DIR)</td></tr>
+  <tr><td><code>GraphModule</code></td><td>Calcul d'urgence de cycle : demurrage réel (oracle) ou 3 j par défaut ; règle &gt; 3 j → prioritaire</td><td>OracleModule</td></tr>
+  <tr><td><code>BlockchainModule</code> (Global)</td><td>Pont on-chain : provider/wallet/contrats (ethers 6), statut, netting, ZK on-chain, ERC20 utils</td><td>ZkProofModule</td></tr>
+  <tr><td><code>DemoModule</code></td><td>Seed de démo et compteurs (protégé par <code>X-Demo-Key</code>)</td><td>Users, Transactions, Neo4j</td></tr>
+  <tr><td><code>AppModule</code></td><td>Assemblage + <code>RateLimitGuard</code> global</td><td>—</td></tr>
+</table>
+
+<h3>4.3 API REST complète (préfixe <code>/api</code>)</h3>
+<table class="badge-table">
+  <tr><th>Méthode</th><th>Route</th><th>Auth</th><th>Description</th></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/</code></td><td><span class="tag pub">public</span></td><td>Message de bienvenue</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/health</code></td><td><span class="tag pub">public</span></td><td><code>{status, neo4j}</code> — 503 si Neo4j injoignable</td></tr>
+  <tr><td><span class="tag post">POST</span></td><td><code>/auth/register</code></td><td><span class="tag pub">public</span> · 10/60 s</td><td>Création de compte (email, password, name + champs conformité optionnels)</td></tr>
+  <tr><td><span class="tag post">POST</span></td><td><code>/auth/login</code></td><td><span class="tag pub">public</span> · 5/60 s</td><td>JWT Bearer</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/auth/profile</code></td><td><span class="tag auth">JWT</span></td><td>Payload du token courant</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/users/me</code></td><td><span class="tag auth">JWT</span></td><td>Profil utilisateur sans <code>passwordHash</code> (inclut <code>industry</code>)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/users/roi</code></td><td><span class="tag auth">JWT</span></td><td>ROI ClearNet (V1.3) : capital immobilisé &gt; 30 j, montants libérés, économie potentielle (15 %/an)</td></tr>
+  <tr><td><span class="tag post">POST</span></td><td><code>/transactions</code></td><td><span class="tag auth">JWT</span></td><td>Création (201) : compliance puis persistance ; <code>fromEmail</code> = token</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/transactions?page=&amp;limit=</code></td><td><span class="tag auth">JWT</span></td><td>Historique paginé (V1.3) : <code>{items, total, page, limit}</code> — page ≥ 1, limit ≤ 100 (mobile)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/transactions/balance</code></td><td><span class="tag auth">JWT</span></td><td>Solde net (V1.3) : reçus − émis + dernière transaction (écran d'accueil mobile)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/transactions/history?limit=</code></td><td><span class="tag auth">JWT</span></td><td>Historique (ordre décroissant, défaut 50) — rétrocompat</td></tr>
+  <tr><td><span class="tag post">POST</span></td><td><code>/companies</code></td><td><span class="tag auth">JWT</span></td><td>Création d'entreprise (201)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/companies?industry=</code></td><td><span class="tag auth">JWT</span></td><td>Liste, filtre sectoriel</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/companies/:id</code></td><td><span class="tag auth">JWT</span></td><td>Détail (404 si absent)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/industries</code></td><td><span class="tag pub">public</span></td><td>15 secteurs avec compteur d'entreprises</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/industries/stats</code></td><td><span class="tag pub">public</span></td><td>totaux v1 (12) / v1.1 (3)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/industries/:code</code></td><td><span class="tag pub">public</span></td><td>Détail d'un secteur (ParseEnumPipe → 400 si inconnu)</td></tr>
+  <tr><td><span class="tag post">POST</span></td><td><code>/demo/seed</code></td><td><span class="tag auth">X-Demo-Key</span></td><td>Crée alice/bob/carol + 3 transactions si vide ; option <code>{ "industry": "…" }</code> (V1.3, early adopters par secteur)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/demo/status</code></td><td><span class="tag auth">X-Demo-Key</span></td><td>Compteurs users / transactions</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/oracles/demurrage?port&lat&lng</code></td><td><span class="tag pub">public</span></td><td>Jours de demeurage (Stormglass ou fallback 3)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/oracles/launch-window?satellite</code></td><td><span class="tag pub">public</span></td><td>Fenêtre de lancement (Space-Track ou fallback 60 j)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/oracles/milestone?nct</code></td><td><span class="tag pub">public</span></td><td>Validité jalon clinique (ClinicalTrials.gov ou fallback)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/blockchain/status</code></td><td><span class="tag pub">public</span></td><td>Diagnostic pont : enabled, réseau, signer, adresses, état ZK, warnings</td></tr>
+  <tr><td><span class="tag post">POST</span></td><td><code>/blockchain/mint</code></td><td><span class="tag auth">X-Demo-Key</span></td><td>Testnet/staging : mint ERC20 + position nette (+amount) ; 400 si email/montant invalides, 503 si pont désactivé (V1.3, E2E)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/blockchain/position/:email</code></td><td><span class="tag auth">X-Demo-Key</span></td><td>Position nette (wei + CLRN) d'un compte dérivé de l'email ; 503 si pont désactivé (V1.3, E2E)</td></tr>
+  <tr><td><span class="tag get">GET</span></td><td><code>/graph/egonet?depth=2&amp;lat=&amp;lng=</code></td><td><span class="tag auth">JWT</span></td><td>Réseau egocentré (V1.3) : nœuds (label, solde, urgence), arêtes orientées débiteur → créancier — consommé par le Force Graph mobile</td></tr>
+</table>
+
+<div class="box"><strong>Temps réel (V1.3)</strong> : gateway socket.io sur le namespace <code>/transactions</code>,
+handshake authentifié JWT (<code>auth.token</code> ou <code>query.token</code>), room <code>user:&lt;email&gt;</code>,
+événement <code>transaction:status</code> <code>{txId, status: PENDING|SUCCESS|FAILED, hash?, error?, at}</code>
+émis à chaque évolution du règlement on-chain. Aucun impact sur le flux HTTP si le client n'utilise pas le socket.</div>
+
+<h3>4.4 Persistance Neo4j</h3>
+<ul>
+  <li>Driver <code>neo4j-driver 5.8</code> injecté en singleton global (<code>NEO4J_DRIVER</code>), fermé au shutdown de l'application.</li>
+  <li>Schéma de base : <code>(User {email, name, passwordHash, …}) -[:SENT]-&gt; (Transaction {id, amount, note, createdAt, onchainHash?, onchainStatus?, onchainError?}) &lt;-[:RECEIVED]- (User)</code> ; nœuds <code>Company {name, industry, country, address}</code>.</li>
+  <li>Identifiants de transaction par <code>randomUUID()</code> côté Cypher ; historique trié par <code>createdAt DESC</code>.</li>
+  <li>Depuis V1.2, le nœud Transaction reçoit <code>onchainHash</code> (hash du settle) et
+      <code>onchainStatus</code> = <code>SUCCESS</code> ou <code>FAILED</code> (+ <code>onchainError</code>).</li>
+</ul>
+
+<h3>4.5 Sécurité applicative</h3>
+<ul>
+  <li><strong>Mots de passe</strong> : bcryptjs, 10 rounds, hash seul stocké.</li>
+  <li><strong>Session</strong> : JWT (Bearer) avec <code>JwtAuthGuard</code> sur les routes privées ; identité reconstruite via <code>@CurrentUser()</code>.</li>
+  <li><strong>Validation</strong> : DTO class-validator + <code>ValidationPipe</code> strict (rejet des champs inconnus).</li>
+  <li><strong>Rate limiting</strong> : global 100 req/60 s + limite renforcée sur auth (5/60 s login, 10/60 s register) et surcharge possible par décorateur <code>@Throttle</code>.</li>
+  <li><strong>Clés et secrets</strong> : exclusivement via variables d'environnement (<code>JWT_SECRET</code>, <code>DEMO_API_KEY</code>, clés oracles, clé privée blockchain) ; défauts uniquement en dev (<code>docker-compose</code>), jamais en production (Helm → secrets).</li>
+  <li><strong>Conformité</strong> : <code>ItarGuard</code> / <code>OfacGuard</code> disponibles, actifs selon flag (cf. §8).</li>
+</ul>
+
+<h3>4.6 Services clés — détails d'implémentation</h3>
+
+<h4>TransactionsService — règlement on-chain (V1.2)</h4>
+<ul>
+  <li>Vérifie l'auto-transfert et la conformité ITAR/OFAC <strong>avant</strong> toute persistance.</li>
+  <li>Persiste la transaction, puis déclenche (si <code>ONCHAIN_ENABLED=true</code>) un règlement
+      <strong>fire-and-forget</strong> : la réponse HTTP n'est jamais bloquée.</li>
+  <li><code>processOnChainSettlement</code> appelle <code>BlockchainService.settleCompensation(fromEmail, toEmail, amount)</code> ;
+      succès → <code>onchainHash</code> + <code>SUCCESS</code> ; échec → <code>FAILED</code> + message, la transaction reste valide hors-chaîne.</li>
+  <li>Les adresses on-chain sont <strong>dérivées des emails</strong> (keccak256, cf. §5.6) : aucune donnée wallet à stocker.</li>
+</ul>
+
+<h4>File BullMQ (V1.3) — règlements industrialisés</h4>
+<ul>
+  <li><strong>Activation</strong> : <code>QUEUE_ENABLED=true</code> (câblage module, off par défaut — fire-and-forget préservé).
+      La <em>décision</em> d'acheminer chaque transaction est évaluée <strong>dynamiquement</strong>
+      (ConfigService, à chaque appel) : désactiver la variable en cours de vie du pod bascule proprement
+      sur le fire-and-forget, sans redémarrage (3.1).</li>
+  <li><strong>Job</strong> <code>onchain-settlement</code> : retries exponentielles (<code>QUEUE_ATTEMPTS</code>=5,
+      <code>QUEUE_BACKOFF_MS</code>=5000), <code>removeOnComplete</code>=1000, <code>removeOnFail</code>=5000 ;
+      succès → <code>markOnchainSuccess</code> + événement <code>transaction:status SUCCESS</code> ; échec → <code>markOnchainFailed</code>
+      + événement <code>FAILED</code> + rethrow.</li>
+  <li><strong>Échecs définitifs</strong> (3.3) : événement <code>failed</code> du worker →
+      nœud <strong><code>FailedJob</code></strong> d'audit en Neo4j (<code>jobId, queue, txId, error, attemptsMade, failedAt</code>)
+      + notification <strong>Slack</strong> (<code>SLACK_WEBHOOK_URL</code>, optionnel).</li>
+  <li><strong>Test d'intégration</strong> (3.2) : <code>queue.integration.spec.ts</code> — Redis réel,
+      flux create → file → processor → SUCCESS/FAILED (écriture Neo4j) → WebSocket ; actif en CI (service Redis).</li>
+</ul>
+
+<h4>ComplianceService — ITAR/OFAC</h4>
+<ul>
+  <li>Screening OFAC à 3 niveaux : liste embarquée → CSV optionnel (<code>OFAC_CSV_PATH</code>) → API externe (<code>OFAC_API_KEY</code>) ; source rapportée dans le résultat.</li>
+  <li>ITAR : secteurs <em>Défense</em>/<em>Spatial</em> autorisés uniquement pour les pays de la liste blanche (<code>US, FR, UK, DE, IT, JP, AU</code>).</li>
+  <li>Désactivé → no-op strict (retourne autorisé).</li>
+</ul>
+
+<h4>OracleService — données sectorielles</h4>
+<ul>
+  <li>Stormglass (maritime) : niveau de mer → <code>demurrageDays</code> (1/3/5 j selon le seuil 1,2 / 2,5 m).</li>
+  <li>Space-Track (spatial) : fenêtre de lancement (60 j par défaut).</li>
+  <li>ClinicalTrials.gov (biotech) : validité d'un jalon via NCT.</li>
+  <li>Chaque appel est borné par <code>ORACLE_TIMEOUT_MS</code> (2,5 s) ; toute erreur → valeur de repli identique au comportement V1.1 + log d'alerte.</li>
+</ul>
+
+<h4>ZkProofService — preuves Groth16</h4>
+<ul>
+  <li><code>generateProof(inputs)</code> : import dynamique de <code>snarkjs</code>, lecture de
+      <code>ZK_ARTIFACTS_DIR</code> (<code>*.wasm</code> + <code>*.zkey</code>), construction du témoin
+      avec montants en <strong>micro-CLRN</strong> (×1e6).</li>
+  <li>Signaux publics dans l'ordre du circuit : <code>[maxAmount, commitment]</code> (corrigé V1.2).</li>
+  <li><code>verifyProof</code> : vérification off-chain (snarkjs) et on-chain (ABI <code>uint256[2] input</code>).</li>
+  <li>Flag <code>ZK_ENABLED=false</code> → <code>generateProof</code> échoue explicitement, <code>verifyProof</code> → <code>{valid:false}</code> : aucune régression.</li>
+</ul>
+
+<h4>GraphService — priorisation de cycle</h4>
+<ul>
+  <li><code>computeUrgency</code> : demurrage réel (si oracles actifs) sinon 3 j ; règle
+      <code>demurrage &gt; 3 j → cycle prioritaire</code> ; la source (<code>oracle</code>/<code>default</code>) est rapportée.</li>
+</ul>
+
+<h4>CompaniesService — référentiel sectoriel</h4>
+<ul>
+  <li>15 secteurs (12 V1 + 3 V1.1 : <em>Maritime</em>, <em>Spatial</em>, <em>Biotech</em>), chacun avec
+      libellé, groupe, version et description.</li>
+  <li>CRUD entreprises + <code>countByIndustry</code> (agrégat Cypher) alimentant
+      <code>/industries</code> et <code>/industries/stats</code>.</li>
+</ul>
+
+<h3>4.7 Passerelle temps réel — <code>TransactionGateway</code> (V1.3)</h3>
+<ul>
+  <li>Namespace <code>/transactions</code> (CORS ouvert), <code>@nestjs/websockets</code> + socket.io.</li>
+  <li>Handshake authentifié : JWT via <code>auth.token</code> ou <code>query.token</code> ; échec → <code>client.disconnect(true)</code>.</li>
+  <li>Room par utilisateur <code>user:&lt;email&gt;</code> — aucun client ne reçoit les événements d'un autre compte.</li>
+  <li>Événement <code>transaction:status</code> : <code>PENDING</code> à la création, puis <code>SUCCESS</code> (avec <code>hash</code>) ou <code>FAILED</code> (avec <code>error</code>) après règlement on-chain — fin du « fire-and-forget » silencieux.</li>
+  <li>Rétrocompatibilité : le flux HTTP est inchangé ; le gateway ne fait que diffuser des événements.</li>
+</ul>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+<h2>5. Blockchain — contrats, scripts et pont</h2>
+
+<h3>5.1 Stack</h3>
+<table>
+  <tr><th>Élément</th><th>Valeur</th></tr>
+  <tr><td>Framework</td><td>Hardhat 2.19.4 (+ toolbox, ethers v6, Etherscan plugin)</td></tr>
+  <tr><td>Solidité</td><td>0.8.19 — optimizer activé (runs 200)</td></tr>
+  <tr><td>Dépendances</td><td>@openzeppelin/contracts (ERC20, Ownable)</td></tr>
+  <tr><td>Réseaux configurés</td><td><code>localhost</code> (127.0.0.1:8545) · <code>clearnet</code> (RPC_URL + PRIVATE_KEY) · <code>sepolia</code> (SEPOLIA_RPC_URL + SEPOLIA_PRIVATE_KEY)</td></tr>
+  <tr><td>Vérification</td><td>Plugin Etherscan (apiKey.sepolia)</td></tr>
+</table>
+
+<h3>5.2 Contrats</h3>
+
+<h4><code>ClearNetToken</code> (ERC20 « ClearNet Token », symbole CLRN, 18 décimales)</h4>
+<ul>
+  <li><code>mint(to, amount)</code> — <code>onlyOwner</code> (émission admin).</li>
+  <li><code>burn(amount)</code> — l'utilisateur brûle ses propres jetons.</li>
+  <li>Hérite d'OpenZeppelin <code>ERC20</code> + <code>Ownable</code>.</li>
+</ul>
+
+<h4><code>CompensationEngine</code> — moteur de netting (MVP + extension ZK)</h4>
+<ul>
+  <li><code>admin</code> immuable = déployeur ; toutes les écritures sont <code>onlyAdmin</code>.</li>
+  <li><code>netPositions(address) → int256</code> : registre de positions nettes.</li>
+  <li><code>updatePosition(account, delta)</code> : ajustement de position (émission <code>PositionUpdated</code>).</li>
+  <li><code>settle(from, to, amount)</code> : transfert de position, <strong>sans mouvement ERC20</strong> ;
+      invariants : <code>netPositions[from] ≥ amount</code> et <code>netPositions[to] ≤ 0</code>
+      (le créditeur paie, le débiteur reçoit).</li>
+  <li><code>setZkSettings(verifier, required, maxAmount)</code> : active l'exigence de preuve
+      ZK (feature flag on-chain, défaut <code>false</code> — comportement V1.1 préservé).</li>
+  <li><code>settleWithProof(from, to, amount, a, b, c, input[2])</code> : si <code>zkRequired</code>,
+      exige <code>0 &lt; amount ≤ maxAmount</code> et une preuve Groth16 valide
+      (<code>IZkVerifier.verifyProof</code>) avant <code>_settle</code>.</li>
+  <li>Événements : <code>PositionUpdated</code>, <code>Compensated</code>, <code>ZkSettingsUpdated</code>.</li>
+</ul>
+
+<h4><code>ChainlinkPriceFeed</code> — oracle de prix on-chain</h4>
+<ul>
+  <li>Trois flux Chainlink (ETH/USD, BTC/USD, XAU/USD) déclarés au constructeur (adresses ≠ 0 imposées).</li>
+  <li>Interface <code>AggregatorV3Interface</code> déclarée en dur (aucune dépendance npm).</li>
+  <li>Garde anti-stale : <code>MAX_STALE_AGE = 24 h</code>, round incomplet / réponse ≤ 0 rejetés.</li>
+  <li>Lectures : <code>getEthUsd()</code>, <code>getBtcUsd()</code>, <code>getXauUsd()</code>, <code>getPrices()</code> (batch) et
+      <code>refresh()</code> qui mémorise les prix (<code>lastEthUsd</code>…, <code>lastUpdateAt</code>) pour les lecteurs fréquents.</li>
+</ul>
+
+<h4><code>IZkVerifier</code> (interface)</h4>
+<ul>
+  <li>Signature Groth16 : <code>verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[2] input)</code>
+      — <strong>2 signaux publics</strong> <code>[maxAmount, commitment]</code>, alignée sur le circuit
+      <code>transaction.circom</code> (correction V1.2 : input [1] → [2]).</li>
+  <li>Le vrai <code>Verifier.sol</code> est généré par <code>scripts/generate-zk-keys.sh</code> (circom + snarkjs) — jamais commité.</li>
+</ul>
+
+<h3>5.3 Scripts</h3>
+<table class="badge-table">
+  <tr><th>Script</th><th>Commande</th><th>Comportement</th></tr>
+  <tr><td>déploiement local</td><td><code>npm run node</code> puis <code>npm run deploy</code></td><td>Hardhat node + déploiement localhost</td></tr>
+  <tr><td>déploiement Sepolia</td><td><code>npm run deploy:sepolia</code></td><td>Vérifie <code>SEPOLIA_RPC_URL</code> + clé (alias <code>PRIVATE_KEY</code>), solde ≥ 0.05 ETH (rejet sinon), déploie Token puis Engine, écrit <code>deployments/sepolia.json</code>, affiche les variables backend</td></tr>
+  <tr><td>vérification</td><td><code>npm run verify:sepolia</code></td><td>Vérification Etherscan des deux contrats (auditabilité)</td></tr>
+  <tr><td>validation bout-en-bout</td><td><code>npm run validate:sepolia</code></td><td>mint 500 CLRN → Alice/Bob (adresses dérivées), positions ±500, <code>settle(Alice→Bob, 500)</code>, contrôle <code>netPositions == 0</code> (clôture nette 0/0)</td></tr>
+</table>
+
+<h3>5.4 Tests Hardhat</h3>
+<p><code>test/compensation.test.ts</code> : scénarios <code>updatePosition</code>, <code>settle</code>,
+invariants (crédit insuffisant, contrepartie sans dette → revert).</p>
+<div class="box warn"><strong>Dette technique connue</strong> : <code>tsc --noEmit</code> échoue sur ce
+fichier (<code>@types/mocha</code> non installé et <code>burn</code> absent du typage local). Les tests
+passent via <code>npx hardhat test</code> ; la dette est documentée hors périmètre des correctifs.</div>
+
+<h3>5.5 Pont backend (<code>BlockchainService</code>, ethers 6)</h3>
+<table>
+  <tr><th>Aspect</th><th>Détail</th></tr>
+  <tr><td>Activation</td><td><code>ONCHAIN_ENABLED=true</code> (alias <code>BLOCKCHAIN_ENABLED</code> pour compat compose V1.1)</td></tr>
+  <tr><td>Initialisation</td><td><code>OnModuleInit</code> : provider JSON-RPC, wallet, balance ETH (warning si 0), instanciation des contrats ; échec doux → <code>warnings</code> exposées dans <code>getStatus()</code></td></tr>
+  <tr><td>Clés d'environnement</td><td><code>BLOCKCHAIN_RPC_URL</code> (repli <code>RPC_URL_SEPOLIA</code>), <code>BLOCKCHAIN_PRIVATE_KEY</code> (repli <code>PRIVATE_KEY</code>), <code>CLRN_TOKEN_ADDRESS</code> (repli <code>CONTRACT_TOKEN_ADDRESS</code>), <code>COMPENSATION_ENGINE_ADDRESS</code> (repli <code>CONTRACT_ENGINE_ADDRESS</code>)</td></tr>
+  <tr><td>Identités</td><td>Dérivation déterministe : <code>0x + keccak256(email.lower).slice(-40)</code> — identique backend/scripts</td></tr>
+  <tr><td>Netting</td><td><code>recordPositionChange(email, delta)</code>, <code>getNetPosition(email)</code>, <code>settleCompensation(fromEmail, toEmail, amount)</code></td></tr>
+  <tr><td>ZK on-chain</td><td><code>settleCompensationWithProof(payload)</code> (génère la preuve via ZkProofService si absente), <code>configureZk(verifier, required, maxAmount)</code> — signer = admin</td></tr>
+  <tr><td>ERC20 utils</td><td><code>getTokenBalance</code>, <code>mintTo</code>, <code>getTokenInfo</code>, <code>approve</code>, <code>getAllowance</code> (semantique : helpers génériques — le netting ne tire pas de tokens)</td></tr>
+  <tr><td>Diagnostic</td><td><code>GET /api/blockchain/status</code> : enabled, network (chainId/name/rpc), signerAddress, adresses, état ZK (required/verifier/maxAmount), warnings — aucun secret</td></tr>
+  <tr><td>Utilitaires testnet (V1.3)</td><td><code>POST /api/blockchain/mint</code> (mint ERC20 + position nette, X-Demo-Key) et <code>GET /api/blockchain/position/:email</code> (position wei + CLRN, X-Demo-Key) — réservés aux tests E2E/démos ; <code>DEMO_API_KEY</code> vide en production = 401 systématique ; pont désactivé = 503</td></tr>
+  <tr><td>Garde</td><td>Toute écriture avec pont désactivé/non initialisé → <code>OnchainBridgeError('disabled' | 'not-initialized')</code> ; lectures → valeurs vides</td></tr>
+</table>
+<div class="box"><strong>Sémantique importante</strong> : <code>settle()</code> du <code>CompensationEngine</code>
+est un <strong>netting de positions</strong> — aucun ERC20 n'est déplacé. L'allowance/approve
+ERC20 n'est donc <em>pas</em> un prérequis du règlement.</div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+<h2>6. Infrastructure</h2>
+
+<h3>6.1 Docker Compose (<code>infrastructure/docker-compose.yml</code>)</h3>
+<ul>
+  <li><strong>neo4j:5.26</strong> : ports 7474 (HTTP) + 7687 (bolt), mot de passe injecté
+      (<code>NEO4J_PASSWORD</code>, défaut dev), volume persistant <code>neo4j-data</code>, healthcheck HTTP.</li>
+  <li><strong>backend</strong> : build <code>Dockerfile</code> multi-étapes (node:20-alpine,
+      <code>npm ci</code>, build, runtime <code>--omit=dev</code>), démarre après le healthcheck Neo4j,
+      healthcheck <code>/api/health</code>, restart <code>unless-stopped</code>.</li>
+  <li>Toutes les variables Phase 2 sont exposées avec <strong>défaut off/vide</strong>.</li>
+</ul>
+
+<h3>6.2 Chart Helm <code>clearnet</code> (Kubernetes)</h3>
+<table>
+  <tr><th>Ressource</th><th>Caractéristiques</th></tr>
+  <tr><td><code>backend-deployment</code></td><td>Image ghcr.io/clearnet/backend:v1.2.0, 2 réplicas, resources (req 250m/256Mi, lim 1CPU/512Mi), probes (startup 20 s)</td></tr>
+  <tr><td><code>backend-hpa</code></td><td>Autoscaling CPU 70 %, 2 → 5 réplicas</td></tr>
+  <tr><td><code>backend-ingress</code></td><td>nginx, hôte clearnet.local, TLS optionnel</td></tr>
+  <tr><td><code>backend-configmap</code></td><td>Env non secrets (flags durcissement off par défaut)</td></tr>
+  <tr><td><code>neo4j-statefulset + service + secret</code></td><td>neo4j:5.26-community, 1 réplica, 10 Gi, secret d'auth</td></tr>
+  <tr><td><code>blockchain-deployment + service</code></td><td>Optionnel (<code>enabled: false</code>) : hardhat node dans le cluster, port 8545</td></tr>
+</table>
+
+<h3>6.3 Scripts e2e</h3>
+<p><code>test-e2e.sh</code> / <code>test-e2e.ps1</code> : smoke tests du cycle complet (démarrage stack,
+health, register/login, transaction, demo seed) — disponibles pour Linux et Windows.</p>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+<h2>7. Application mobile (Expo / React Native) — V1.3</h2>
+<ul>
+  <li>Expo SDK ~49.0.21, React Native 0.72.10, TypeScript 5.3 ; <code>tsc --noEmit</code> OK (19 fichiers sources).</li>
+  <li>Dépendances V1.3 : <code>socket.io-client</code> (temps réel), <code>@react-native-community/netinfo</code>
+      (détection réseau), <code>expo-sqlite</code> (file hors-ligne), <code>react-native-svg</code> (Force Graph),
+      <code>expo-print</code>/<code>expo-sharing</code> (export PDF), <code>react-native-toast-message</code>, AsyncStorage.</li>
+  <li>Écrans : <code>LoginScreen</code> · <code>RegisterScreen</code> (sélecteur obligatoire des 15 secteurs) ·
+      <code>HomeScreen</code> (solde, dernière opération) · <code>TransactionsScreen</code> (historique, création,
+      file hors-ligne) · <code>GraphScreen</code> (Force Graph SVG du réseau egocentré).</li>
+  <li><strong>Thème sectoriel dynamique</strong> : <code>ThemeContext</code> dérive la palette de l'industrie de
+      l'utilisateur (15 palettes dans <code>constants/industries.ts</code>, miroir du backend).</li>
+  <li><strong>Offline-first</strong> : table SQLite <code>pending_transactions</code> ; les paiements créés
+      hors-ligne sont rejoués par <code>useBackgroundSync</code> dès le retour du réseau (NetInfo) vers
+      <code>POST /api/transactions</code> (statuts LOCAL_PENDING / LOCAL_SUCCESS / LOCAL_FAILED).</li>
+  <li><strong>Temps réel</strong> : <code>useTransactionWebSocket</code> s'abonne au gateway socket.io (cf. §4.7)
+      et déclenche le rafraîchissement solde/graphe ; sur web, aucun flux live (fallback REST).</li>
+  <li><code>api/client.ts</code> : wrapper fetch typé ; base URL <code>EXPO_PUBLIC_API_URL</code> sinon
+      <code>10.0.2.2:3000/api</code> (émulateur Android) sinon <code>localhost:3000/api</code>.</li>
+  <li>Config plugin <code>plugins/withClearNetNative.js</code> : permissions Android (INTERNET,
+      ACCESS_NETWORK_STATE, stockage), <code>usesCleartextTraffic</code> (dev), <code>NSPhotoLibraryUsageDescription</code> (iOS).</li>
+  <li>Contrat API aligné V1.3 : <code>GET /transactions/balance</code> (solde), <code>GET /transactions?page=&amp;limit=</code>
+      (historique paginé), <code>GET /graph/egonet</code> (Force Graph), socket.io namespace <code>/transactions</code>
+      (JWT handshake, événement <code>transaction:status</code>) ; thème sectoriel alimenté par
+      <code>user.industry</code> renvoyé par <code>/auth/login</code> et <code>/auth/register</code>.</li>
+</ul>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+<h2>8. Durcissement Phase 2 — ITAR / OFAC / Oracles / ZK / Pont</h2>
+
+<table>
+  <tr><th>Brique</th><th>Flag</th><th>Comportement actif</th><th>Défaut</th></tr>
+  <tr><td>Conformité ITAR/OFAC</td><td><code>ITAR_ENABLED</code></td><td>Screening des deux parties avant transaction ; blocage des entités sanctionnées et des flux Défense/Spatial hors liste blanche ; guards applicatifs</td><td class="ko">off</td></tr>
+  <tr><td>Oracles sectoriels</td><td><code>ORACLES_ENABLED</code></td><td>Demurrage réel (Stormglass), fenêtre de lancement (Space-Track), jalons cliniques (ClinicalTrials.gov) ; timeout 2,5 s + fallback</td><td class="ko">off</td></tr>
+  <tr><td>Priorisation de cycle</td><td>(dépend d'Oracles)</td><td>Urgence high si demurrage &gt; 3 j (source rapportée)</td><td class="ko">fallback 3 j</td></tr>
+  <tr><td>Preuves ZK</td><td><code>ZK_ENABLED</code></td><td>Génération/vérification Groth16 (snarkjs) ; <code>settleWithProof</code> exigible on-chain via <code>setZkSettings</code></td><td class="ko">off</td></tr>
+  <tr><td>Pont on-chain</td><td><code>ONCHAIN_ENABLED</code></td><td>Positions et règlements répliqués sur <code>CompensationEngine</code> (Sepolia) ; hash/statut sur le nœud Transaction</td><td class="ko">off</td></tr>
+  <tr><td>Oracle de prix Chainlink</td><td>contrat déployable</td><td>ETH/BTC/XAU-USD avec anti-stale 24 h — logique déclarée, déploiement attendu avec les vraies adresses de DataFeed</td><td class="ko">non déployé</td></tr>
+</table>
+
+<div class="box warn"><strong>Gates jamais franchis localement</strong> : artefacts ZK jamais générés
+(circom/snarkjs absents de la machine de build — WSL2 requis via <code>scripts/generate-zk-keys.sh</code>),
+<code>helm lint</code> non exécutable (outil absent), déploiement Sepolia réel non exécuté (clés opérateur).</div>
+</section>
+
+<!-- ================= 9 ================= -->
+<section id="s9">
+<h2>9. Cycle de vie d'un règlement (bout en bout)</h2>
+<ol>
+  <li>L'utilisateur s'authentifie (JWT) et <code>POST /api/transactions</code> (montant en CLRN, destinataire, note optionnelle).</li>
+  <li>Le backend vérifie : auto-transfert interdit → <em>compliance</em> (si active) : screening OFAC des deux parties + règle ITAR.</li>
+  <li>Persistance du nœud <code>Transaction</code> dans Neo4j (relations SENT / RECEIVED, <code>createdAt</code>, <code>onchainStatus</code> vide).</li>
+  <li>Réponse HTTP 201 immédiate ; en parallèle (si pont actif) : <code>settleCompensation(from, to, amount)</code> sur <code>CompensationEngine</code>.</li>
+  <li>Le contrat vérifie les invariants de netting (crédit du payeur suffisant, dette de la contrepartie) et ajuste les positions nettes ; événement <code>Compensated</code>.</li>
+  <li>Écriture <code>onchainHash</code> + <code>onchainStatus: SUCCESS</code> (ou <code>FAILED</code> + <code>onchainError</code>, sans invalider la transaction).</li>
+  <li>Consultation : <code>GET /api/transactions/history</code> ; diagnostic du pont : <code>GET /api/blockchain/status</code>.</li>
+</ol>
+<p>Variante ZK : avec <code>zkRequired=true</code>, l'étape 4 passe par <code>settleWithProof</code> —
+la preuve est générée par le backend (snarkjs) ou fournie ; le montant est borné par
+<code>maxAmount</code>. <strong>Caveat d'échelle documenté</strong> : le circuit raisonne en micro-CLRN (×1e6),
+le ledger on-chain en wei (×1e18) — le gate valide la mécanique de preuve, l'égalité exacte
+d'échelle est un raffinement de phase suivante (acceptable sur testnet).</p>
+</section>
+
+<!-- ================= 10 ================= -->
+<section id="s10">
+<h2>10. Registre de configuration</h2>
+<h3>10.1 Backend (<code>clearnet-backend/.env</code> / docker-compose)</h3>
+<table class="badge-table">
+  <tr><th>Variable</th><th>Défaut</th><th>Usage</th></tr>
+  <tr><td><code>PORT</code></td><td>3000</td><td>Port HTTP</td></tr>
+  <tr><td><code>NEO4J_URI / USER / PASSWORD</code></td><td>bolt://localhost:7687 · neo4j · clearnet123</td><td>Connexion graphe</td></tr>
+  <tr><td><code>JWT_SECRET</code></td><td>change-me (dev)</td><td>Signature JWT</td></tr>
+  <tr><td><code>THROTTLE_TTL / THROTTLE_LIMIT</code></td><td>60000 · 100</td><td>Rate-limit global</td></tr>
+  <tr><td><code>DEMO_API_KEY</code></td><td>demo-secret-change-me</td><td>Routes /demo</td></tr>
+  <tr><td><code>ONCHAIN_ENABLED</code> (alias <code>BLOCKCHAIN_ENABLED</code>)</td><td>false</td><td>Pont on-chain</td></tr>
+  <tr><td><code>BLOCKCHAIN_RPC_URL</code> (repli <code>RPC_URL_SEPOLIA</code>)</td><td>—</td><td>RPC du réseau</td></tr>
+  <tr><td><code>BLOCKCHAIN_PRIVATE_KEY</code> (repli <code>PRIVATE_KEY</code>)</td><td>clé dev hardhat</td><td>Signer admin (⚠️ secret)</td></tr>
+  <tr><td><code>CLRN_TOKEN_ADDRESS</code> / <code>COMPENSATION_ENGINE_ADDRESS</code></td><td>—</td><td>Adresses déployées</td></tr>
+  <tr><td><code>ITAR_ENABLED</code> · <code>OFAC_API_KEY</code> · <code>OFAC_CSV_PATH</code></td><td>false · vide · vide</td><td>Conformité</td></tr>
+  <tr><td><code>ORACLES_ENABLED</code> · <code>STORMGLASS_API_KEY</code> · <code>SPACE_TRACK_USER</code>/<code>PASSWORD</code> · <code>ORACLE_TIMEOUT_MS</code></td><td>false · vide · 2500</td><td>Oracles sectoriels</td></tr>
+  <tr><td><code>ZK_ENABLED</code> · <code>VERIFIER_ADDRESS</code> · <code>ZK_ARTIFACTS_DIR</code></td><td>false · vide · ./zkartifacts</td><td>Preuves ZK</td></tr>
+  <tr><td><code>QUEUE_ENABLED</code> · <code>REDIS_HOST</code> · <code>REDIS_PORT</code> · <code>REDIS_PASSWORD</code></td><td>false · redis · 6379 · vide</td><td>File BullMQ (évaluation dynamique 3.1 ; câblage au démarrage)</td></tr>
+  <tr><td><code>QUEUE_ATTEMPTS</code> · <code>QUEUE_BACKOFF_MS</code></td><td>5 · 5000</td><td>Retries exponentielles des règlements</td></tr>
+  <tr><td><code>SLACK_WEBHOOK_URL</code></td><td>vide</td><td>Notification échecs définitifs (3.3, optionnel)</td></tr>
+</table>
+
+<h3>10.2 Blockchain (<code>clearnet-blockchain/.env</code>)</h3>
+<table class="badge-table">
+  <tr><th>Variable</th><th>Usage</th></tr>
+  <tr><td><code>RPC_URL</code> · <code>PRIVATE_KEY</code></td><td>Réseau privé <code>clearnet</code></td></tr>
+  <tr><td><code>SEPOLIA_RPC_URL</code> · <code>SEPOLIA_PRIVATE_KEY</code> (alias <code>PRIVATE_KEY</code>)</td><td>Réseau Sepolia</td></tr>
+  <tr><td><code>ETHERSCAN_API_KEY</code></td><td>Vérification des contrats</td></tr>
+</table>
+<div class="box danger"><strong>Sécurité des clés</strong> : aucune clé privée n'est commitée ;
+les fichiers <code>.env</code> sont hors versionnement ; en production, Helm/K8s injectent les secrets
+(valeurs chart, secrets Neo4j, clés backend).</div>
+</section>
+
+<!-- ================= 11 ================= -->
+<section id="s11">
+<h2>11. Validation &amp; qualité</h2>
+<h3>11.1 Résultats exécutés (à jour au rapport)</h3>
+<table>
+  <tr><th>Vérification</th><th>Résultat</th></tr>
+  <tr><td><code>npm run build</code> (backend NestJS)</td><td class="ok">OK — 0 erreur TS (services blockchain + transactions fusionnés)</td></tr>
+  <tr><td><code>npx jest --runInBand</code> (backend)</td><td class="ok">OK — 3 suites, 11/11 tests passés</td></tr>
+  <tr><td><code>npx hardhat compile</code></td><td class="ok">OK — 9 fichiers Solidity (dont input[2] sur IZkVerifier/CompensationEngine)</td></tr>
+  <tr><td><code>tsc --noEmit</code> (clearnet-mobile)</td><td class="ok">OK — 0 erreur (V1.3 : 19 fichiers sources, 5 écrans)</td></tr>
+  <tr><td>Smoke HTTP réel (docker compose up --build, Neo4j 5.26)</td><td class="ok">OK — cycle register → login → transaction → seed démo (Phase 2, doc SECTOR_EXTENSION)</td></tr>
+  <tr><td><code>tsc --noEmit</code> (clearnet-mobile V1.3, après build V1.3)</td><td class="ok">OK — revalidé après ajout des écrans Transactions/Réseau, offline-first et WS</td></tr>
+  <tr><td>Alignement mobile ↔ contrat API (V1.3)</td><td class="ok">OK — <code>GET /transactions/balance</code> + pagination ajoutés au backend ; mobile recâblé (egonet, socket.io JWT, <code>transaction:status</code>) ; <code>user.industry</code> exposé par auth</td></tr>
+</table>
+
+<h3>11.2 Éléments non exécutés / dettes</h3>
+<table>
+  <tr><th>Point</th><th>Statut</th><th>Conséquence / remédiation</th></tr>
+  <tr><td>Déploiement réel Sepolia</td><td class="warn">À exécuter par l'opérateur</td><td>Clés/faucet requis — procédure complète dans PONT_SEPOLIA_DEPLOYMENT.md</td></tr>
+  <tr><td>Artefacts ZK (Verifier.sol, .wasm, .zkey)</td><td class="warn">Jamais générés</td><td>WSL2 + circom/snarkjs (<code>generate-zk-keys.sh</code>) puis <code>configureZk</code></td></tr>
+  <tr><td><code>helm lint</code></td><td class="warn">Non exécuté localement</td><td>À faire en CI (outil absent de la machine)</td></tr>
+  <tr><td><code>tsc --noEmit</code> sur <code>test/compensation.test.ts</code></td><td class="ko">Échec pré-existant</td><td><code>@types/mocha</code> manquant + typage <code>burn</code> — hors périmètre ; passer par <code>hardhat test</code></td></tr>
+  <tr><td>Égalité d'échelle micro-CLRN / wei</td><td class="warn">Raffinement</td><td>Documenté — acceptable pour le gate MVP testnet</td></tr>
+</table>
+</section>
+
+<!-- ================= 12 ================= -->
+<section id="s12">
+<h2>12. Déploiement</h2>
+<h3>12.1 Documents de procédure (racine)</h3>
+<ul>
+  <li><code>README.md</code> — démarrage complet (Docker, backend seul, Hardhat, mobile, dépannage).</li>
+  <li><code>PHASE2_DEPLOYMENT.md</code> — activation des durcissements (clés, approbation conformité).</li>
+  <li><code>PONT_SEPOLIA_DEPLOYMENT.md</code> — <strong>procédure officielle du pont</strong> :
+      prérequis (Node 20+, Hardhat, Alchemy/Infura, wallet + faucet, clé Etherscan) → déploiement
+      (<code>cp .env.example .env</code>, <code>npx hardhat run scripts/deploy-sepolia.ts --network sepolia</code>)
+      → vérification → activation backend → validation → gate ZK → rollback → registre.</li>
+</ul>
+<h3>12.2 Séquence type (testnet)</h3>
+<pre>
+cd clearnet-blockchain
+cp .env.example .env          # SEPOLIA_RPC_URL, SEPOLIA_PRIVATE_KEY, ETHERSCAN_API_KEY
+npm run deploy:sepolia        # → deployments/sepolia.json (Token + Engine)
+npm run verify:sepolia        # Etherscan
+npm run validate:sepolia      # mint 500 → positions ±500 → settle → contrôle 0/0
+# Backend
+ONCHAIN_ENABLED=true
+BLOCKCHAIN_RPC_URL=…  BLOCKCHAIN_PRIVATE_KEY=…   # même clé que le déploiement (admin)
+CLRN_TOKEN_ADDRESS=…  COMPENSATION_ENGINE_ADDRESS=…
+curl localhost:3000/api/blockchain/status        # enabled: true, chainId 11155111
+</pre>
+<h3>12.3 Rollback</h3>
+<p>Le pont est <strong>réversible</strong> : <code>ONCHAIN_ENABLED=false</code> + redémarrage backend
+ramène à un fonctionnement 100 % hors-chaîne. La clé privée n'est jamais exposée ; sa rotation
+se fait dans le gestionnaire de secrets.</p>
+</section>
+
+<!-- ================= 13 ================= -->
+<section id="s13">
+<h2>13. Limites connues &amp; perspectives</h2>
+<ul>
+  <li><strong>MVP opérateur centralisé</strong> : le backend détient la clé admin du
+      <code>CompensationEngine</code> — le netting est exécuté de façon déléguée, pas par un réseau de validateurs.</li>
+  <li><strong>Identités dérivées des emails</strong> : adresses déterministes sans registre de
+      correspondance signé ; à remplacer par un schéma d'identité auto-souveraine (DIDs) en phase suivante.</li>
+  <li><strong>Échelle ZK</strong> : bornes 64 bits du circuit vs wei du ledger — unalignement documenté.</li>
+  <li><strong>Oracles</strong> : clés API à provisionner ; l'agrégation Chainlink on-chain (ETH/BTC/XAU)
+      est déclarée mais non déployée.</li>
+  <li><strong>Multi-réseaux</strong> : la config Hardhat prévoit mainnet (<code>clearnet</code>) ;
+      le déploiement réel reste à valider sur Sepolia puis sur le réseau cible.</li>
+  <li><strong>Perspectives</strong> : file de règlements avec retries/backoff, surveillance des
+      événements on-chain (indexeur), tests e2e Kubernetes (kind/CI), renforcement du référentiel OFAC
+      (listes mises à jour), vérification de preuves hors-ligne pour les parties.</li>
+  <li><strong>Mobile V1.3</strong> : contrat API aligné (solde, pagination, egonet, socket.io) ;
+      validation sur émulateur Android restant à exécuter (bout-en-bout réel).</li>
+</ul>
+</section>
+
+</main>
+
+<footer>
+  ClearNet V1.3.0 — Rapport technique réévalué le 2026-08-11 à partir de l'état du dépôt
+  (52 fichiers TS backend, 4 fichiers Solidity, chart Helm 14 fichiers, 5 écrans mobile + hooks/services/plugins).
+  Sources : code source, scripts, tests exécutés, documents de livraison (PHASE2_*, PONT_SEPOLIA_*, SECTOR_EXTENSION).
+</footer>
+
+</body>
+</html>

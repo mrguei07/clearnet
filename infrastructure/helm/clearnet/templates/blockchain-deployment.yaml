@@ -1,0 +1,28 @@
+{{- if .Values.blockchain.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "clearnet.fullname" . }}-blockchain
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockchain
+  template:
+    metadata:
+      labels:
+        app: blockchain
+    spec:
+      containers:
+        - name: devnet
+          image: {{ .Values.blockchain.image | quote }}
+          command: {{ .Values.blockchain.command | toJson }}
+          ports:
+            - containerPort: {{ .Values.blockchain.port }}
+              name: rpc
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+{{- end }}

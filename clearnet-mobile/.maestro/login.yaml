@@ -1,0 +1,43 @@
+appId: com.clearnet.mobile
+name: Login E2E (inscription -> connexion)
+env:
+  REGISTERED_EMAIL: "maestro-${MAESTRO_RUN_ID}.clearner@test.local"
+---
+- launchApp:
+    clearState: true
+    permissions:
+      - permissions: { location: deny, notifications: deny }
+- waitForAnimationToEnd
+- assertVisible:
+    id: "home-screen"
+- tapOn:
+    id: "go-register"
+- tapOn:
+    id: "register-email"
+- inputText: ${REGISTERED_EMAIL}
+- tapOn:
+    id: "register-password"
+- inputText: "Maestro2024!"
+# Le secteur d'activité est obligatoire à l'inscription (V1.3)
+- tapOn:
+    id: "register-industry-Technology"
+- tapOn:
+    id: "register-submit"
+- assertVisible:
+    id: "home-screen"
+    timeout: 15000
+- tapOn:
+    id: "logout"
+- assertVisible:
+    id: "login-email"
+- tapOn:
+    id: "login-email"
+- inputText: ${REGISTERED_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: "Maestro2024!"
+- tapOn:
+    id: "login-submit"
+- assertVisible:
+    id: "home-screen"
+    timeout: 10000

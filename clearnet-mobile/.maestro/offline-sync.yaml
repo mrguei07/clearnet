@@ -1,0 +1,45 @@
+appId: com.clearnet.mobile
+name: Offline-first + WebSocket (PENDING -> SUCCESS)
+env:
+  AMOUNT: "1.25"
+  NOTE: "maestro-offline"
+---
+- launchApp:
+    clearState: true
+    permissions:
+      - permissions: { location: deny, notifications: deny }
+- assertVisible:
+    id: "home-screen"
+- tapOn:
+    id: "go-transactions"
+- tapOn:
+    id: "new-payment"
+- tapOn:
+    id: "tx-to"
+- inputText: "alice@clearner.app"
+- tapOn:
+    id: "tx-amount"
+- inputText: ${AMOUNT}
+- tapOn:
+    id: "tx-note"
+- inputText: ${NOTE}
+# --- Hors-ligne : la tx part dans la file locale (expo-sqlite) ---
+- setAirplaneMode: true
+- tapOn:
+    id: "tx-submit"
+- assertVisible:
+    id: "tx-queued-local"
+    timeout: 10000
+# --- Retour réseau : synchronisation depuis la file + transaction visible ---
+- setAirplaneMode: false
+- extendedWaitUntil:
+    visible:
+      id: "tx-history-first"
+    timeout: 30000
+- assertVisible:
+    text: "maestro-offline"
+    timeout: 10000
+# --- Le banneton de file locale a disparu : tout est synchronisé ---
+- assertNotVisible:
+    id: "tx-queued-local"
+    timeout: 10000

@@ -1,0 +1,57 @@
+{{- if and .Values.prometheus.enabled .Values.prometheus.alerts.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "clearnet.fullname" . }}-bullmq
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: clearnet-bullmq.rules
+      rules:
+        # Axe 5 : taux d'échec de règlement on-chain > 5 % sur 5 min
+        - alert: HighJobFailureRate
+          expr: |
+            sum(rate(bull_queue_jobs_failed_total[5m])) by (queue)
+              / clamp_min(sum(rate(bull_queue_jobs_completed_total[5m])) by (queue), 1)
+              > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Taux d'échec de règlement > 5 % ({{ `{{ $labels.queue }}` }})"
+        # Axe 5 : file de règlements bloquée (> 500 en attente > 10 min)
+        - alert: QueueBacklogHigh
+          expr: bull_queue_jobs_waiting > 500
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "File de règlements en attente > 500 (blockage de traitement)"
+        # Angle mort 3.1 : soumission multisig non confirmée depuis > 4 h
+        - alert: MultiSigStuckPending
+          expr: clearnet_multisig_pending_tx_seconds > 14400
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Soumission multisig bloquée > 4 h — owners 2/3 à solliciter"
+        # Angle mort 3.4 : solde ETH du multisig sous le seuil de gas (0,05 ETH)
+        - alert: MultiSigEthLow
+          expr: clearnet_multisig_eth_balance < 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Solde ETH du multisig < 0,05 — gas de règlement épuisé"
+        # Angle mort 3.2 : quota FREE à 80 % (Slack natif ; règle en renfort)
+        - alert: FreeQuotaNearLimit
+          expr: |-
+            clearnet_free_quota_used / clamp_min(clearnet_free_quota_max, 1) >= 0.8
+              and clearnet_free_quota_max > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Quota FREE à 80 % — friction d'adoption à surveiller"
+{{- end }}

@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# ClearNet — CI validation (point de vigilance 3.5)
+# Exécutée à chaque push / pull request, AVANT tout déploiement :
+#   - job helm : helm lint + helm template (rendu production, dry) ;
+#   - job backend : npm ci → build → tests (unitaires + intégration BullMQ,
+#     cette dernière est skippée si aucun service Redis n'est fourni).
+# ---------------------------------------------------------------------------
+name: CI validation
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+
+jobs:
+  helm:
+    name: Helm lint + template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: helm lint (chart + overrides production)
+        run: helm lint infrastructure/helm/clearnet -f infrastructure/helm/clearnet/values-production.yaml
+
+      - name: helm template (rendu production)
+        run: |
+          helm template clearnet infrastructure/helm/clearnet \
+            -f infrastructure/helm/clearnet/values-production.yaml \
+            --namespace clearnet > /tmp/clearnet-manifests.yaml
+          test -s /tmp/clearnet-manifests.yaml
+          echo "Manifests rendus : $(grep -c '^kind:' /tmp/clearnet-manifests.yaml) ressources"
+
+      - name: helm lint (chart + overrides validation kind)
+        run: helm lint infrastructure/helm/clearnet -f infrastructure/helm/clearnet/values.yaml
+
+      - name: Syntaxe des scripts shell
+        run: bash -n scripts/*.sh
+
+  backend:
+    name: Backend build + tests
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: clearnet-backend/package-lock.json
+
+      - name: npm ci
+        working-directory: clearnet-backend
+        run: npm ci
+
+      - name: Build
+        working-directory: clearnet-backend
+        run: npm run build
+
+      - name: Tests (unitaires + intégration BullMQ — Redis fourni)
+        working-directory: clearnet-backend
+        run: npm test -- --runInBand
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: "6379"

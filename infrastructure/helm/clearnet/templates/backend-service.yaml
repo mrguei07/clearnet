@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clearnet.fullname" . }}-backend
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    {{- if .Values.backend.metrics.enabled }}
+    - name: metrics
+      port: {{ .Values.backend.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}

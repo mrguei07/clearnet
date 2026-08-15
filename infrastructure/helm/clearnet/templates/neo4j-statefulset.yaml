@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clearnet.fullname" . }}-neo4j
+  labels:
+    {{- include "clearnet.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "clearnet.fullname" . }}-neo4j
+  replicas: {{ .Values.neo4j.replicas }}
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+    spec:
+      containers:
+        - name: neo4j
+          image: {{ .Values.neo4j.image | quote }}
+          ports:
+            - containerPort: 7474
+              name: http
+            - containerPort: 7687
+              name: bolt
+          env:
+            - name: NEO4J_AUTH
+              {{ if .Values.neo4j.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.neo4j.existingSecret | quote }}
+                  key: auth
+              {{ else }}
+              value: "{{ .Values.neo4j.authUser }}/{{ .Values.neo4j.authPassword }}"
+              {{ end }}
+            - name: NEO4J_server_memory_heap_initial__size
+              value: "256m"
+            - name: NEO4J_server_memory_heap_max__size
+              value: "512m"
+          resources:
+            {{- toYaml .Values.neo4j.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: bolt
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  {{- if .Values.neo4j.persistence }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.neo4j.storage.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.neo4j.storage.size | quote }}
+  {{- end }}
