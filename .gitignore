@@ -5,3 +5,10 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+
+# Artefacts de build mobile (jamais commités)
+*.apk
+*.jks
+keystore-password.txt
+splash-check.png
+clearnet-mobile/.expo/

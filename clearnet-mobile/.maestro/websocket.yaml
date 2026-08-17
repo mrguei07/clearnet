@@ -1,0 +1,46 @@
+appId: com.clearnet
+name: WebSocket E2E (mise a jour poussee sans refresh)
+env:
+  REGISTERED_EMAIL: "ws-${MAESTRO_RUN_ID}.clearner@test.local"
+  REGISTERED_PASSWORD: "Maestro2024!"
+  TO_EMAIL: "partner@clearnet.test"
+  BACKEND_URL: "http://10.0.2.2:3000/api"
+---
+- launchApp:
+    clearState: true
+    permissions:
+      - permissions: { location: deny, notifications: deny }
+- waitForAnimationToEnd
+- assertVisible:
+    id: "home-screen"
+- tapOn:
+    id: "go-register"
+- tapOn:
+    id: "register-email"
+- inputText: ${REGISTERED_EMAIL}
+- tapOn:
+    id: "register-password"
+- inputText: ${REGISTERED_PASSWORD}
+- tapOn:
+    id: "register-industry-Technology"
+- tapOn:
+    id: "register-submit"
+- assertVisible:
+    id: "home-screen"
+    timeout: 15000
+# Injection d'une transaction par l'API (le canal WebSocket doit pousser la mise à jour)
+- runScript:
+    file: scripts/trigger-transaction.js
+- waitForAnimationToEnd
+- assertVisible:
+    id: "home-screen"
+- tapOn:
+    id: "go-transactions"
+# Historique mis à jour par le push WebSocket (sans re-soumission manuelle)
+- extendedWaitUntil:
+    visible:
+      id: "tx-history-first"
+    timeout: 15000
+- back
+- assertVisible:
+    id: "home-screen"

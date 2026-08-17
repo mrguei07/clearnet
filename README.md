@@ -82,6 +82,20 @@ npx expo start            # puis appuyez sur a (Android) ou i (iOS)
 - **Appareil physique** : créez `.env` avec votre IP LAN :
   `EXPO_PUBLIC_API_URL=http://192.168.x.x:3000/api` (backend lancé en local, port 3000 exposé).
 
+### Build APK Android (release)
+
+> ⚠️ **Obligatoire après CHAQUE `npm install`/`npm ci` et après tout `expo prebuild`** :
+> `patch-build.ps1` applique les correctifs Gradle 8 requis par la stack SDK 49 (miroir de plugins, guards `components.release`, `archiveClassifier`, classes legacy expo-splash-screen). Sans lui, le build échoue.
+
+```powershell
+cd clearnet-mobile
+npm install
+powershell -ExecutionPolicy Bypass -File .\patch-build.ps1   # correctifs obligatoires (idempotent)
+.\build-gradle.cmd                                          # assembleRelease -> android\app\build\outputs\apk\release\app-release.apk
+```
+
+Détails, FAQ et validation complète : voir `BUILD_FIX_GUIDE.md` (racine du repo).
+
 ## Dépannage rapide
 
 | Problème | Solution |

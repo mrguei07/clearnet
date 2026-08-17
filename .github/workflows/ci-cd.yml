@@ -1,0 +1,237 @@
+# ---------------------------------------------------------------------------
+# ClearNet — CI/CD (V1.4) — build release Android industrialisé.
+# Déclencheurs : push sur main/develop, PR sur main, tags v* (release).
+# Jobs : lint-backend, test-backend, lint-mobile, build-android, verify-apk,
+#        notify, release (tags v* uniquement).
+# Rétrocompatible : les workflows existants (ci-validation.yml, mobile-ci.yml)
+# restent actifs pour les PR ; celui-ci est le pipeline de livraison.
+# ---------------------------------------------------------------------------
+name: CI/CD ClearNet
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: "20"
+  JAVA_VERSION: "17"
+  EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api' }}
+
+jobs:
+  # ---------------- Backend ----------------
+  lint-backend:
+    name: Lint backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearnet-backend/package-lock.json
+      - name: npm ci
+        working-directory: clearnet-backend
+        run: npm ci
+      - name: ESLint + Prettier (check)
+        working-directory: clearnet-backend
+        run: npx eslint . --ext .ts && npx prettier --check "src/**/*.ts"
+
+  test-backend:
+    name: Tests backend (Jest + BullMQ/Redis)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearnet-backend/package-lock.json
+      - name: npm ci
+        working-directory: clearnet-backend
+        run: npm ci
+      - name: npm run build
+        working-directory: clearnet-backend
+        run: npm run build
+      - name: Jest (unitaires + intégration Redis)
+        working-directory: clearnet-backend
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: "6379"
+        run: npm test
+
+  # ---------------- Mobile ----------------
+  lint-mobile:
+    name: Lint mobile (TS + ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearnet-mobile/package-lock.json
+      - name: npm ci
+        working-directory: clearnet-mobile
+        run: npm ci
+      - name: TypeScript
+        working-directory: clearnet-mobile
+        run: npx tsc --noEmit
+      - name: ESLint
+        working-directory: clearnet-mobile
+        run: npx expo lint
+
+  secrets-scan:
+    name: Scan secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2.3.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-android:
+    name: Build APK release (patch + assembleRelease)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearnet-mobile/package-lock.json
+
+      - name: Composants Android SDK (idempotent)
+        shell: pwsh
+        run: |
+          $sdks = "platforms;android-34","build-tools;30.0.3","build-tools;35.0.0","ndk;26.3.11579264","cmake;3.22.1","platform-tools","cmdline-tools;latest"
+          $sdkman = "$env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
+          if (-not (Test-Path $sdkman)) { $sdkman = "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" }
+          $missing = @($sdks | Where-Object {
+            $p = $_.Replace(";", "\"); -not (Test-Path "$env:ANDROID_HOME\$p")
+          })
+          if ($missing.Count -gt 0) {
+            cmd /c "echo y | `"$sdkman`" $($missing -join ' ') `"`""
+            $retry = @()
+            foreach ($s in $missing) {
+              $p = $s.Replace(";", "\")
+              if (-not (Test-Path "$env:ANDROID_HOME\$p")) { $retry += $s }
+            }
+            if ($retry.Count -gt 0) {
+              cmd /c "echo y | `"$sdkman`" $($retry -join ' ')"
+            }
+          }
+
+      - name: npm ci
+        working-directory: clearnet-mobile
+        run: npm ci
+
+      - name: Expo prebuild (android/ non versionné)
+        working-directory: clearnet-mobile
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Patch Gradle 8 (obligatoire, idempotent)
+        working-directory: clearnet-mobile
+        run: powershell -ExecutionPolicy Bypass -File .\patch-build.ps1
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('clearnet-mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: assembleRelease (build-gradle.cmd)
+        working-directory: clearnet-mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ env.EXPO_PUBLIC_API_URL }}
+        run: .\build-gradle.cmd
+        shell: cmd
+
+      - name: Upload APK + logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: |
+            clearnet-mobile/android/app/build/outputs/apk/release/app-release.apk
+            clearnet-mobile/build-gradle.log
+
+  verify-apk:
+    name: Validation APK (signature, taille, ressources)
+    needs: build-android
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-release
+          path: artifacts
+      - name: apksigner verify + taille + extraction + ressources
+        shell: pwsh
+        run: |
+          $apk = "artifacts\app-release.apk"
+          if (-not (Test-Path $apk)) { throw "APK absente" }
+          $size = (Get-Item $apk).Length
+          Write-Host "Taille : $([Math]::Round($size / 1MB, 1)) Mo"
+          if ($size -lt 60MB) { throw "APK < 60 Mo ($size octets)" }
+          & "$env:LOCALAPPDATA\Android\Sdk\build-tools\35.0.0\apksigner.bat" verify --verbose $apk
+          if ($LASTEXITCODE -ne 0) { throw "Signature invalide" }
+          $listing = tar -tf $apk
+          Write-Host "Entrees APK : $($listing.Count)"
+          foreach ($need in "classes.dex", "assets/index.android.bundle", "lib/arm64-v8a/libhermes.so", "lib/armeabi-v7a/libhermes.so", "lib/x86_64/libhermes.so") {
+            if ($listing -notmatch [regex]::Escape($need)) { throw "Ressource manquante : $need" }
+          }
+          & "$env:LOCALAPPDATA\Android\Sdk\build-tools\35.0.0\aapt2.exe" dump badging $apk | Select-String "package:|launchable-activity"
+          Write-Host "OK : APK valide"
+
+  notify:
+    name: Notification Slack
+    needs: [build-android, verify-apk]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notifier
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -s -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"ClearNet CI/CD : jobs $(echo '${{ toJson(needs) }}' | jq -r 'keys | join(", ")') — statut final ${{ needs.verify-apk.result }}\"}" \
+            $SLACK_WEBHOOK_URL || true
+
+  release:
+    name: Release GitHub (tags v*)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [verify-apk, test-backend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-release
+          path: artifacts
+      - name: Créer la release avec l'APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" artifacts/app-release.apk `
+            --title "ClearNet ${{ github.ref_name }}" `
+            --notes "APK release officielle — voir BUILD_FIX_GUIDE.md pour la validation." || gh release upload "${{ github.ref_name }}" artifacts/app-release.apk --clobber
+        shell: pwsh

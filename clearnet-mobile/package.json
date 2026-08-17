@@ -6,8 +6,8 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "prebuild": "expo prebuild --clean",
     "run:android": "expo run:android",
@@ -30,10 +30,12 @@
     "react-native-toast-message": "^2.2.0",
     "react-native-web": "~0.19.6",
     "react-native-webview": "^13.2.2",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "expo-splash-screen": "~0.20.5"
   },
   "devDependencies": {
     "@types/react": "~18.2.45",
-    "typescript": "~5.3.3"
+    "typescript": "~5.3.3",
+    "@babel/core": "^7.20.0"
   }
 }

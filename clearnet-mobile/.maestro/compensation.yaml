@@ -1,0 +1,55 @@
+appId: com.clearnet
+name: Compensation E2E (inscription -> paiement -> historique)
+env:
+  REGISTERED_EMAIL: "comp-${MAESTRO_RUN_ID}.clearner@test.local"
+  REGISTERED_PASSWORD: "Maestro2024!"
+  TO_EMAIL: "partner@clearnet.test"
+  BACKEND_URL: "http://10.0.2.2:3000/api"
+---
+- launchApp:
+    clearState: true
+    permissions:
+      - permissions: { location: deny, notifications: deny }
+- waitForAnimationToEnd
+- assertVisible:
+    id: "home-screen"
+# Inscription (secteur obligatoire depuis V1.3)
+- tapOn:
+    id: "go-register"
+- tapOn:
+    id: "register-email"
+- inputText: ${REGISTERED_EMAIL}
+- tapOn:
+    id: "register-password"
+- inputText: ${REGISTERED_PASSWORD}
+- tapOn:
+    id: "register-industry-Energy"
+- tapOn:
+    id: "register-submit"
+- assertVisible:
+    id: "home-screen"
+    timeout: 15000
+# Flux de compensation : paiement vers un partenaire du seed demo
+- tapOn:
+    id: "go-transactions"
+- assertVisible:
+    id: "tx-to"
+- tapOn:
+    id: "tx-to"
+- inputText: ${TO_EMAIL}
+- tapOn:
+    id: "tx-amount"
+- inputText: "5"
+- tapOn:
+    id: "tx-note"
+- inputText: "Test compensation E2E"
+- tapOn:
+    id: "tx-submit"
+# La transaction apparaît dans l'historique (réseau ou file locale)
+- extendedWaitUntil:
+    visible:
+      id: "tx-history-first"
+    timeout: 15000
+- back
+- assertVisible:
+    id: "home-screen"
