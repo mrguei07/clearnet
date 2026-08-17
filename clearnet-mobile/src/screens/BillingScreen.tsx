@@ -5,17 +5,18 @@ import { api } from '../api/client';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface BillingStatus {
-  tier: 'FREE' | 'PRO' | 'ENTERPRISE';
+  tier: 'FREE' | 'ESSENTIAL' | 'PRO' | 'ENTERPRISE';
   customerId: string | null;
   quotaUsed: number;
-  quotaMax: number;
+  quotaMax: number | null;
 }
 
 const WARN_COLOR = '#f87171';
 
-/** V1.4 Axe 2 — Écran « Abonnement » : statut FREE/PRO/ENTERPRISE, quota du mois
- *  civil UTC, lien de checkout Stripe hébergé (deep link clearnet://billing en retour).
- *  3.2 : libellé « Tx ce mois (mois civil UTC) » + avertissement visuel ≥ 80 % ;
+/** V1.5 Pricing — Écran « Abonnement » : statut FREE/ESSENTIAL/PRO/ENTERPRISE,
+ *  quota du mois civil UTC (barre pour tout niveau à quota fini, « ∞ » pour
+ *  Enterprise), lien de checkout Stripe hébergé (deep link clearnet://billing
+ *  en retour). 3.2 : libellé « Tx ce mois (mois civil UTC) » + alerte ≥ 80 % ;
  *  3.6 : badge early adopter. */
 export default function BillingScreen({ token }: { token: string }) {
   const { palette } = useTheme();
@@ -59,7 +60,7 @@ export default function BillingScreen({ token }: { token: string }) {
 
   const used = status?.quotaUsed ?? 0;
   const quota = status?.quotaMax ?? 10;
-  const unlimited = quota === Infinity || quota === 0;
+  const unlimited = quota == null;
   const pct = unlimited ? 0 : Math.round((used / quota) * 100);
   const warn = pct >= 80;
 
@@ -77,7 +78,7 @@ export default function BillingScreen({ token }: { token: string }) {
               Early Adopter — quota exempté
             </Text>
           )}
-          {status.tier === 'FREE' && !earlyAdopter && (
+          {status.tier !== 'ENTERPRISE' && !earlyAdopter && (
             <>
               <Text style={[styles.row, { color: palette.text }]} testID="billing-quota">
                 Tx ce mois (mois civil UTC) : {used} / {unlimited ? '∞' : quota}
@@ -93,7 +94,7 @@ export default function BillingScreen({ token }: { token: string }) {
               </View>
               <Text style={[styles.hint, { color: warn ? WARN_COLOR : palette.muted }]}>
                 {warn
-                  ? 'Quota presque atteint — passez Pro pour continuer'
+                  ? 'Quota presque atteint — passez au niveau supérieur pour continuer'
                   : unlimited
                     ? 'Quota illimité'
                     : `${pct} % du quota mensuel consommé`}
@@ -107,7 +108,7 @@ export default function BillingScreen({ token }: { token: string }) {
             style={[styles.cta, { backgroundColor: busy ? palette.muted : palette.primary }]}
           >
             <Text style={styles.ctaText}>
-              {status.tier === 'FREE' ? 'Passer Pro' : 'Gérer mon abonnement'}
+              {status.tier === 'FREE' ? 'Passer au niveau supérieur' : 'Gérer mon abonnement'}
             </Text>
           </Pressable>
         </>

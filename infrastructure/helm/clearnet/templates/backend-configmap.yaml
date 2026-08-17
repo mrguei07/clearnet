@@ -31,7 +31,9 @@ data:
   METRICS_PORT: {{ .Values.backend.metrics.port | quote }}
   METRICS_POLL_BALANCE_MS: {{ .Values.backend.metrics.pollBalanceMs | quote }}
   BILLING_ENABLED: {{ .Values.backend.billing.enabled | ternary "true" "false" | quote }}
+  STRIPE_PRICE_ESSENTIAL: {{ .Values.backend.billing.priceEssential | quote }}
   STRIPE_PRICE_PRO: {{ .Values.backend.billing.pricePro | quote }}
+  STRIPE_PRICE_ENTERPRISE: {{ .Values.backend.billing.priceEnterprise | quote }}
   BILLING_FREE_QUOTA: {{ .Values.backend.billing.freeQuota | quote }}
   BILLING_SUCCESS_URL: {{ .Values.backend.billing.successUrl | quote }}
   BILLING_CANCEL_URL: {{ .Values.backend.billing.cancelUrl | quote }}

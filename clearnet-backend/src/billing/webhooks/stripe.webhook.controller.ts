@@ -11,8 +11,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import Stripe from 'stripe';
-import { BillingService, SubscriptionTier } from '../billing.service';
+import { BillingService } from '../billing.service';
 import { StripeIpGuard } from '../../common/guards/stripe-ip.guard';
+import { tierFromPrice } from '../pricing';
 
 /**
  * Endpoint public mais protégé par :
@@ -52,12 +53,10 @@ export class StripeWebhookController {
 
     if (event.type.startsWith('customer.subscription.')) {
       const sub = event.data.object as Stripe.Subscription;
-      const tier: SubscriptionTier =
+      const tier =
         event.type === 'customer.subscription.deleted'
           ? 'FREE'
-          : sub.items?.data?.[0]?.price?.metadata?.tier === 'enterprise'
-            ? 'ENTERPRISE'
-            : 'PRO';
+          : tierFromPrice(sub.items?.data?.[0]?.price, this.config);
 
       const customerEmail = await this.resolveCustomerEmail(stripe, sub);
       if (!customerEmail) {

@@ -1,7 +1,8 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { BillingService, SubscriptionTier } from './billing.service';
+import { BillingService } from './billing.service';
 import { NEO4J_DRIVER } from '../neo4j/neo4j.module';
+import { isPaidTier, priceIdForTier, quotaForTier, tierFromPrice, upgradeMessage } from './pricing';
 
 /** Stub ConfigService minimal (isolation des tests — aucune variable d'env requise). */
 function configStub(values: Record<string, string> = {}): ConfigService {
@@ -66,13 +67,42 @@ describe('BillingService', () => {
     );
   });
 
-  it('mappe le tier webhook : deleted → FREE, metadata tier enterprise → ENTERPRISE', () => {
-    const map = (type: string, priceMeta: { tier?: string }): SubscriptionTier => {
-      if (type === 'customer.subscription.deleted') return 'FREE';
-      return priceMeta?.tier === 'enterprise' ? 'ENTERPRISE' : 'PRO';
-    };
-    expect(map('customer.subscription.deleted', {})).toBe('FREE');
-    expect(map('customer.subscription.updated', { tier: 'enterprise' })).toBe('ENTERPRISE');
-    expect(map('customer.subscription.created', {})).toBe('PRO');
+  it('mappe le tier webhook : deleted → FREE, Price ID configuré → niveau, metadata → repli', () => {
+    const config = configStub({
+      STRIPE_PRICE_ESSENTIAL: 'price_essential_real',
+      STRIPE_PRICE_PRO: 'price_pro_real',
+      STRIPE_PRICE_ENTERPRISE: 'price_enterprise_real',
+    });
+    expect(tierFromPrice(null, config)).toBe('PRO');
+    expect(tierFromPrice({ id: 'price_essential_real' }, config)).toBe('ESSENTIAL');
+    expect(tierFromPrice({ id: 'price_pro_real' }, config)).toBe('PRO');
+    expect(tierFromPrice({ id: 'price_enterprise_real' }, config)).toBe('ENTERPRISE');
+    expect(tierFromPrice({ id: 'price_xyz', metadata: { tier: 'enterprise' } }, config)).toBe(
+      'ENTERPRISE',
+    );
+    expect(tierFromPrice({ id: 'price_xyz', metadata: { tier: 'essential' } }, config)).toBe(
+      'ESSENTIAL',
+    );
+    expect(tierFromPrice({ id: 'price_xyz', metadata: {} }, config)).toBe('PRO');
+  });
+
+  it('grille V1.5 : quotas + prix par niveau (bankable)', () => {
+    const config = configStub({
+      BILLING_FREE_QUOTA: '15',
+      STRIPE_PRICE_ESSENTIAL: 'price_ess',
+      STRIPE_PRICE_PRO: 'price_pro',
+      STRIPE_PRICE_ENTERPRISE: 'price_ent',
+    });
+    expect(quotaForTier('FREE', config)).toBe(15);
+    expect(quotaForTier('ESSENTIAL', config)).toBe(50);
+    expect(quotaForTier('PRO', config)).toBe(500);
+    expect(quotaForTier('ENTERPRISE', config)).toBeNull();
+    expect(priceIdForTier('ESSENTIAL', config)).toBe('price_ess');
+    expect(priceIdForTier('PRO', config)).toBe('price_pro');
+    expect(priceIdForTier('ENTERPRISE', config)).toBe('price_ent');
+    expect(isPaidTier('FREE')).toBe(false);
+    expect(isPaidTier('ESSENTIAL') && isPaidTier('ENTERPRISE')).toBe(true);
+    expect(upgradeMessage('FREE')).toContain('Essentiel');
+    expect(upgradeMessage('PRO')).toContain('niveau supérieur');
   });
 });

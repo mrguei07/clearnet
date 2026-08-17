@@ -46,9 +46,11 @@ backend:
     port: 3001
     pollBalanceMs: 300000               # angle mort 3.4 — solde ETH multisig
   billing:
-    enabled: false                      # Axe 2 — Stripe (freemium → Pro)
+    enabled: false                      # Axe 2 / V1.5 Pricing — Stripe (4 niveaux : Free/Essentiel/Pro/Enterprise)
+    priceEssential: ""                  # Price ID du plan Essentiel
     pricePro: ""                        # Price ID du plan Pro
-    freeQuota: 10
+    priceEnterprise: ""                 # Price ID du plan Enterprise
+    freeQuota: 15                       # Règle d'or : Free = 15 tx/mois (au-delà → 402)
     successUrl: "clearnet://billing?ok=1"
     cancelUrl: "clearnet://billing"
     webhookIps: ""                      # angle mort 3.5 — repli CSV allowlist

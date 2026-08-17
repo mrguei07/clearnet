@@ -17,6 +17,7 @@ import { ComplianceService, OfacProfile } from '../compliance/compliance.service
 import { UsersService } from '../users/users.service';
 import { TransactionGateway } from './transactions.gateway';
 import { ONCHAIN_QUEUE } from './transaction.processor';
+import { commissionForTier, quotaForTier, SubscriptionTier, upgradeMessage } from '../billing/pricing';
 
 export interface TransactionRecord {
   id: string;
@@ -27,6 +28,8 @@ export interface TransactionRecord {
   onchainHash?: string | null;
   onchainStatus?: string | null;
   onchainError?: string | null;
+  /** V1.5 Pricing : commission ClearNet du niveau de l'émetteur (null si billing off). */
+  feeRate?: number | null;
   createdAt: string;
 }
 
@@ -108,9 +111,11 @@ export class TransactionsService {
       if (input.fromEmail === input.toEmail) {
         throw new BadRequestException('Impossible de s’envoyer une transaction à soi-même');
       }
-      // V1.4 Axe 2 + 3.6 : quota Freemium (no-op strict si BILLING_ENABLED !== 'true')
-      await this.assertBillingQuota(input.fromEmail);
+      // V1.4 Axe 2 + 3.6 : quota Freemium (no-op strict si BILLING_ENABLED !== 'true').
+      // V1.5 Pricing : renvoie le niveau — commission appliquée à la création.
+      const tier = await this.assertBillingQuota(input.fromEmail);
       await this.assertCompliance(input.fromEmail, input.toEmail);
+      const feeRate = tier ? commissionForTier(tier) : null;
       const result = await session.run(
         `MATCH (sender:User {email: $fromEmail})
          MATCH (recipient:User {email: $toEmail})
@@ -118,12 +123,13 @@ export class TransactionsService {
            id: randomUUID(),
            amount: $amount,
            note: $note,
+           feeRate: $feeRate,
            createdAt: datetime()
          })
          CREATE (sender)-[:SENT]->(t)
          CREATE (recipient)-[:RECEIVED]->(t)
          RETURN t`,
-        { ...input, note: input.note ?? null },
+        { ...input, note: input.note ?? null, feeRate },
       );
       if (result.records.length === 0) {
         throw new BadRequestException('Destinataire introuvable');
@@ -347,28 +353,44 @@ export class TransactionsService {
   }
 
   /**
-   * V1.4 Axe 2 — Quota Freemium à la création :
-   *  - tier FREE → max BILLING_FREE_QUOTA transactions SENT par mois civil UTC ;
+   * V1.5 Pricing — Quota mensuel à la création (Free 15 / Essentiel 50 /
+   * Pro 500 / Enterprise illimité) :
+   *  - tiers à quota fini → max transactions SENT par mois civil UTC ;
+   *  - dépassement → 402 Payment Required (code BILLING_QUOTA_EXCEEDED) ;
    *  - early adopters (3.6) exemptés si EARLY_ADOPTER_ENABLED=true ;
    *  - ≥ 80 % du quota → alerte Slack 1×/jour/user (3.2, non bloquante).
    *  BILLING_ENABLED !== 'true' → no-op strict (flux V1.3 inchangé).
+   *  Renvoie le niveau de l'émetteur (null si billing désactivé) — utilisé
+   *  pour appliquer la commission du niveau (feeRate).
    */
-  private async assertBillingQuota(fromEmail: string): Promise<void> {
-    if (this.config.get<string>('BILLING_ENABLED') !== 'true') return;
+  private async assertBillingQuota(fromEmail: string): Promise<SubscriptionTier | null> {
+    if (this.config.get<string>('BILLING_ENABLED') !== 'true') return null;
     const { tier, earlyAdopter } = await this.billingTier(fromEmail);
     const ea = this.config.get<string>('EARLY_ADOPTER_ENABLED') === 'true' && earlyAdopter;
-    if (tier === 'FREE' && !ea) {
-      const q = Number(this.config.get<string>('BILLING_FREE_QUOTA', '10'));
-      const used = await this.billingCount(fromEmail);
-      if (used >= q) {
-        throw new HttpException(
-          { statusCode: 402, code: 'BILLING_QUOTA_EXCEEDED', used, quota: q },
-          HttpStatus.PAYMENT_REQUIRED,
-        );
+    if (!ea) {
+      const q = quotaForTier(tier as SubscriptionTier, this.config);
+      if (q != null) {
+        const used = await this.billingCount(fromEmail);
+        if (used >= q) {
+          throw new HttpException(
+            {
+              statusCode: 402,
+              code: 'BILLING_QUOTA_EXCEEDED',
+              tier,
+              used,
+              quota: q,
+              message: upgradeMessage(tier as SubscriptionTier),
+            },
+            HttpStatus.PAYMENT_REQUIRED,
+          );
+        }
+        // 3.2 : alerte à 80 % (1×/jour calendaire UTC, Slack non bloquant)
+        if (used >= Math.ceil(q * 0.8)) {
+          await this.notifyQuotaAlert(fromEmail, used, q, tier as SubscriptionTier);
+        }
       }
-      // 3.2 : alerte à 80 % (1×/jour calendaire UTC, Slack non bloquant)
-      if (used >= Math.ceil(q * 0.8)) await this.notifyQuotaAlert(fromEmail, used, q);
     }
+    return tier as SubscriptionTier;
   }
 
   private async billingTier(email: string): Promise<{ tier: string; earlyAdopter: boolean }> {
@@ -409,7 +431,12 @@ export class TransactionsService {
   }
 
   /** 3.2 — alerte Slack à ≥ 80 % du quota, idempotente par jour calendaire UTC. */
-  private async notifyQuotaAlert(email: string, used: number, quota: number): Promise<void> {
+  private async notifyQuotaAlert(
+    email: string,
+    used: number,
+    quota: number,
+    tier: SubscriptionTier,
+  ): Promise<void> {
     const url = this.config.get<string>('SLACK_WEBHOOK_URL', '');
     if (!url) return;
     const session = this.driver.session();
@@ -426,7 +453,7 @@ export class TransactionsService {
         await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ text: `⚠️ Quota FREE ${used}/${quota} atteint (80 %) — ${email}` }),
+          body: JSON.stringify({ text: `⚠️ Quota ${tier} ${used}/${quota} atteint (80 %) — ${email}` }),
         }).catch(() => undefined);
       }
     } finally {
@@ -463,6 +490,7 @@ export class TransactionsService {
       onchainHash?: string | null;
       onchainStatus?: string | null;
       onchainError?: string | null;
+      feeRate?: number | null;
       createdAt?: Date;
     };
     return {
@@ -474,6 +502,7 @@ export class TransactionsService {
       onchainHash: props.onchainHash ?? null,
       onchainStatus: props.onchainStatus ?? null,
       onchainError: props.onchainError ?? null,
+      feeRate: props.feeRate != null ? Number(props.feeRate) : null,
       createdAt: this.toIso(props.createdAt),
     };
   }

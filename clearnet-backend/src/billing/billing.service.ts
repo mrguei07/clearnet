@@ -3,11 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { NEO4J_DRIVER } from '../neo4j/neo4j.module';
 import Stripe from 'stripe';
 import type { Driver } from 'neo4j-driver';
+import { priceIdForTier, quotaForTier, SubscriptionTier } from './pricing';
 
-export type SubscriptionTier = 'FREE' | 'PRO' | 'ENTERPRISE';
+export { SubscriptionTier } from './pricing';
 
 /**
- * V1.4 Axe 2 — Facturation Stripe (freemium → Pro → Enterprise).
+ * V1.5 Pricing — Facturation Stripe (4 niveaux : Free / Essentiel / Pro / Enterprise).
  *
  * Règle d'or (V1.3 conservée) : `BILLING_ENABLED !== 'true'` → BillingService
  * instancié mais inopérant (`assertEnabled` lève 503) ; le flux transactions
@@ -41,27 +42,34 @@ export class BillingService {
     }
   }
 
-  /** Checkout hébergé Stripe (mode subscription, aucune donnée PCI côté ClearNet). */
-  async createCheckout(email: string): Promise<{ url: string }> {
+  /**
+   * Checkout hébergé Stripe (mode subscription, aucune donnée PCI côté
+   * ClearNet). Le niveau est optionnel côté client : défaut PRO
+   * (rétrocompatibilité mobile) ; les niveaux payants sont ESSENTIAL/PRO/ENTERPRISE.
+   */
+  async createCheckout(
+    email: string,
+    tier: SubscriptionTier = 'PRO',
+  ): Promise<{ url: string; tier: SubscriptionTier }> {
     this.assertEnabled();
     const session = await this.stripe!.checkout.sessions.create({
       mode: 'subscription',
       customer_email: email,
       line_items: [
-        { price: this.config.get<string>('STRIPE_PRICE_PRO', 'price_pro_default'), quantity: 1 },
+        { price: priceIdForTier(tier, this.config), quantity: 1 },
       ],
       success_url: this.config.get<string>('BILLING_SUCCESS_URL', 'clearnet://billing?ok=1'),
       cancel_url: this.config.get<string>('BILLING_CANCEL_URL', 'clearnet://billing'),
-      metadata: { source: 'clearnet-backend', email },
+      metadata: { source: 'clearnet-backend', email, tier },
     });
-    return { url: session.url ?? '' };
+    return { url: session.url ?? '', tier };
   }
 
   async status(email: string): Promise<{
     tier: SubscriptionTier;
     customerId: string | null;
     quotaUsed: number;
-    quotaMax: number;
+    quotaMax: number | null;
   }> {
     this.assertEnabled();
     const session = this.driver.session();
@@ -73,11 +81,8 @@ export class BillingService {
         { email },
       );
       const tier: SubscriptionTier = res.records[0]?.get('tier') ?? 'FREE';
-      const quotaMax =
-        tier === 'FREE'
-          ? Number(this.config.get<string>('BILLING_FREE_QUOTA', '10'))
-          : Number(this.config.get<string>('BILLING_ENTERPRISE_QUOTA', '0')) || Infinity;
-      const used = tier === 'FREE' ? await this.countMonth(email) : 0;
+      const quotaMax = quotaForTier(tier, this.config);
+      const used = quotaMax == null ? 0 : await this.countMonth(email);
       return { tier, customerId: res.records[0]?.get('customer') ?? null, quotaUsed: used, quotaMax };
     } finally {
       await session.close();

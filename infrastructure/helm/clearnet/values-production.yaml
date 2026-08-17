@@ -24,9 +24,11 @@ backend:
     port: 3001
     pollBalanceMs: 300000    # angle mort 3.4 : solde multisig toutes les 5 min
   billing:
-    enabled: true            # Stripe (Axe 2) — false pour rétrocompat pure
+    enabled: true            # Stripe (V1.5 Pricing) — false pour rétrocompat pure
+    priceEssential: ""       # ⚠️ Price ID Stripe du plan Essentiel (mode test d'abord)
     pricePro: ""             # ⚠️ Price ID Stripe du plan Pro (mode test d'abord)
-    freeQuota: 10
+    priceEnterprise: ""      # ⚠️ Price ID Stripe du plan Enterprise (mode test d'abord)
+    freeQuota: 15            # Règle d'or : Free = 15 tx/mois (au-delà → 402)
     successUrl: "clearnet://billing?ok=1"
     cancelUrl: "clearnet://billing"
     webhookIps: ""           # angle mort 3.5 : repli CSV si le fetch des IP Stripe échoue
