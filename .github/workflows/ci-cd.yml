@@ -1,10 +1,11 @@
 # ---------------------------------------------------------------------------
-# ClearNet — CI/CD (V1.4) — build release Android industrialisé.
+# ClearNet — CI/CD — build release Android (AAB) industrialisé (Expo SDK 57).
 # Déclencheurs : push sur main/develop, PR sur main, tags v* (release).
-# Jobs : lint-backend, test-backend, lint-mobile, build-android, verify-apk,
+# Jobs : lint-backend, test-backend, lint-mobile, build-android (AAB), verify-aab,
 #        notify, release (tags v* uniquement).
 # Rétrocompatible : les workflows existants (ci-validation.yml, mobile-ci.yml)
 # restent actifs pour les PR ; celui-ci est le pipeline de livraison.
+# Build store alternatif (EAS, AAB+IPA) : release-store.yml.
 # ---------------------------------------------------------------------------
 name: CI/CD ClearNet
 
@@ -19,7 +20,7 @@ on:
 env:
   NODE_VERSION: "20"
   JAVA_VERSION: "17"
-  EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api' }}
+  EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://api.clearnet.fr/api' }}
 
 jobs:
   # ---------------- Backend ----------------
@@ -100,8 +101,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-android:
-    name: Build APK release (patch + assembleRelease)
-    runs-on: windows-latest
+    name: Build AAB release (Expo SDK 57)
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -116,25 +117,9 @@ jobs:
           cache-dependency-path: clearnet-mobile/package-lock.json
 
       - name: Composants Android SDK (idempotent)
-        shell: pwsh
         run: |
-          $sdks = "platforms;android-34","build-tools;30.0.3","build-tools;35.0.0","ndk;26.3.11579264","cmake;3.22.1","platform-tools","cmdline-tools;latest"
-          $sdkman = "$env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
-          if (-not (Test-Path $sdkman)) { $sdkman = "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" }
-          $missing = @($sdks | Where-Object {
-            $p = $_.Replace(";", "\"); -not (Test-Path "$env:ANDROID_HOME\$p")
-          })
-          if ($missing.Count -gt 0) {
-            cmd /c "echo y | `"$sdkman`" $($missing -join ' ') `"`""
-            $retry = @()
-            foreach ($s in $missing) {
-              $p = $s.Replace(";", "\")
-              if (-not (Test-Path "$env:ANDROID_HOME\$p")) { $retry += $s }
-            }
-            if ($retry.Count -gt 0) {
-              cmd /c "echo y | `"$sdkman`" $($retry -join ' ')"
-            }
-          }
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 
       - name: npm ci
         working-directory: clearnet-mobile
@@ -143,10 +128,6 @@ jobs:
       - name: Expo prebuild (android/ non versionné)
         working-directory: clearnet-mobile
         run: npx expo prebuild --platform android --no-install
-
-      - name: Patch Gradle 8 (obligatoire, idempotent)
-        working-directory: clearnet-mobile
-        run: powershell -ExecutionPolicy Bypass -File .\patch-build.ps1
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -157,52 +138,41 @@ jobs:
           key: gradle-${{ hashFiles('clearnet-mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
-      - name: assembleRelease (build-gradle.cmd)
-        working-directory: clearnet-mobile
+      - name: bundleRelease (AAB)
+        working-directory: clearnet-mobile/android
         env:
           EXPO_PUBLIC_API_URL: ${{ env.EXPO_PUBLIC_API_URL }}
-        run: .\build-gradle.cmd
-        shell: cmd
+        run: ./gradlew :app:bundleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
-      - name: Upload APK + logs
+      - name: Upload AAB
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: |
-            clearnet-mobile/android/app/build/outputs/apk/release/app-release.apk
-            clearnet-mobile/build-gradle.log
+          name: app-release-aab
+          path: clearnet-mobile/android/app/build/outputs/bundle/release/app-release.aab
 
-  verify-apk:
-    name: Validation APK (signature, taille, ressources)
+  verify-aab:
+    name: Validation AAB (signature, taille)
     needs: build-android
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: app-release
+          name: app-release-aab
           path: artifacts
-      - name: apksigner verify + taille + extraction + ressources
-        shell: pwsh
+      - name: jarsigner verify + taille
         run: |
-          $apk = "artifacts\app-release.apk"
-          if (-not (Test-Path $apk)) { throw "APK absente" }
-          $size = (Get-Item $apk).Length
-          Write-Host "Taille : $([Math]::Round($size / 1MB, 1)) Mo"
-          if ($size -lt 60MB) { throw "APK < 60 Mo ($size octets)" }
-          & "$env:LOCALAPPDATA\Android\Sdk\build-tools\35.0.0\apksigner.bat" verify --verbose $apk
-          if ($LASTEXITCODE -ne 0) { throw "Signature invalide" }
-          $listing = tar -tf $apk
-          Write-Host "Entrees APK : $($listing.Count)"
-          foreach ($need in "classes.dex", "assets/index.android.bundle", "lib/arm64-v8a/libhermes.so", "lib/armeabi-v7a/libhermes.so", "lib/x86_64/libhermes.so") {
-            if ($listing -notmatch [regex]::Escape($need)) { throw "Ressource manquante : $need" }
-          }
-          & "$env:LOCALAPPDATA\Android\Sdk\build-tools\35.0.0\aapt2.exe" dump badging $apk | Select-String "package:|launchable-activity"
-          Write-Host "OK : APK valide"
+          aab="artifacts/app-release.aab"
+          if [ ! -f "$aab" ]; then echo "AAB absente"; exit 1; fi
+          size=$(stat -c%s "$aab")
+          echo "Taille : $((size / 1024 / 1024)) Mo"
+          if [ "$size" -lt 1048576 ]; then echo "AAB < 1 Mo ($size octets)"; exit 1; fi
+          jarsigner -verify "$aab" | head -5
+          echo "OK : AAB valide"
 
   notify:
     name: Notification Slack
-    needs: [build-android, verify-apk]
+    needs: [build-android, verify-aab]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -212,26 +182,25 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -s -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"ClearNet CI/CD : jobs $(echo '${{ toJson(needs) }}' | jq -r 'keys | join(", ")') — statut final ${{ needs.verify-apk.result }}\"}" \
+            --data "{\"text\":\"ClearNet CI/CD : jobs $(echo '${{ toJson(needs) }}' | jq -r 'keys | join(", ")') — statut final ${{ needs.verify-aab.result }}\"}" \
             $SLACK_WEBHOOK_URL || true
 
   release:
     name: Release GitHub (tags v*)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [verify-apk, test-backend]
+    needs: [verify-aab, test-backend]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: app-release
+          name: app-release-aab
           path: artifacts
-      - name: Créer la release avec l'APK
+      - name: Créer la release avec l'AAB
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" artifacts/app-release.apk `
-            --title "ClearNet ${{ github.ref_name }}" `
-            --notes "APK release officielle — voir BUILD_FIX_GUIDE.md pour la validation." || gh release upload "${{ github.ref_name }}" artifacts/app-release.apk --clobber
-        shell: pwsh
+          gh release create "${{ github.ref_name }}" artifacts/app-release.aab \
+            --title "ClearNet ${{ github.ref_name }}" \
+            --notes "AAB release (Play Store) — voir docs/STORE_SUBMISSION.md pour la soumission." || gh release upload "${{ github.ref_name }}" artifacts/app-release.aab --clobber
