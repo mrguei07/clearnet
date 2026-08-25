@@ -220,6 +220,14 @@
   .prow .pv{color:var(--muted); font-size:12.5px}
   .prow .pc{color:var(--muted)}
   .prow.danger .pl{color:#f87171; font-weight:600}
+
+  /* ---- Simulation réseau (V1.5) ---- */
+  .sim-toggle{background:var(--surface); border:1px solid rgba(148,163,184,.35); border-radius:999px; padding:5px 12px; font-size:11px; font-weight:700; cursor:pointer; color:var(--text); margin-left:auto}
+  .sim-toggle.on{background:var(--accent); color:#0b1220; border-color:var(--accent)}
+  .feed{background:var(--surface); border-radius:12px; padding:9px 12px; margin-top:10px; font-size:11px; overflow:hidden}
+  .feed .fe{display:flex; align-items:center; gap:6px; color:var(--muted); padding:3px 0; animation:tin .3s ease; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .feed .fe b{color:var(--text)}
+  .sect-pill{display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; border-radius:999px; padding:2px 8px}
 </style>
 </head>
 <body>
@@ -282,12 +290,13 @@
       </div>
 
       <div class="screen" id="sc-graph" hidden>
-        <div class="netstatus"><span class="netdot" id="netdot"></span><span id="netStatus">Connecté en temps réel</span></div>
+        <div class="netstatus"><span class="netdot" id="netdot"></span><span id="netStatus">Connecté en temps réel</span><span class="sim-toggle" id="simToggle" onclick="toggleSim()">▶ Simuler</span></div>
         <div class="graphwrap">
           <svg class="graphsvg" id="gsvg" viewBox="0 0 260 240"></svg>
           <div class="sheet" id="gsheet"></div>
         </div>
         <div class="netcard" id="gmeta"></div>
+        <div class="feed" id="feed"></div>
       </div>
 
       <div class="screen" id="sc-billing" hidden>
@@ -441,20 +450,34 @@ let state = {
     { id:'t7', dir:'out', amt:120,  time:'10:20', date:'06 août', label:'TransSped Logistics',               note:'AVL quai 12',                      country:'IT', status:'FAILED' },
   ],
   nodes: {
-    "CMR – Compagnie Maritime du Rhône": { c:'FR', vol: 8620,  n: 6 },
-    "TransSped Logistics":               { c:'IT', vol: 2040,  n: 3 },
-    "Nova Energy":                       { c:'DE', vol: 6650,  n: 4 },
-    "FreightWiki & Co":                  { c:'CH', vol: 1280,  n: 2 },
-    "Meridian Shipping":                 { c:'GR', vol: 600,   n: 1 },
+    "CMR – Compagnie Maritime du Rhône": { c:'FR', vol: 8620,  n: 6,  s:'Maritime' },
+    "TransSped Logistics":               { c:'IT', vol: 2040,  n: 3,  s:'SupplyChain' },
+    "Nova Energy":                       { c:'DE', vol: 6650,  n: 4,  s:'Energy' },
+    "FreightWiki & Co":                  { c:'CH', vol: 1280,  n: 2,  s:'Aviation' },
+    "Meridian Shipping":                 { c:'GR', vol: 600,   n: 1,  s:'Maritime' },
+    "BNP Paribas":                       { c:'FR', vol: 8800,  n: 5,  s:'Banking' },
+    "Sanofi":                            { c:'FR', vol: 4100,  n: 3,  s:'Healthcare' },
+    "Arianespace":                       { c:'FR', vol: 9600,  n: 4,  s:'Spatial' },
+    "Thales":                            { c:'FR', vol: 5600,  n: 4,  s:'Technology' },
+    "BioNTech":                          { c:'DE', vol: 2900,  n: 2,  s:'Biotech' },
   },
   edges: [
     ["CMR – Compagnie Maritime du Rhône","TransSped Logistics"],
     ["CMR – Compagnie Maritime du Rhône","Nova Energy"],
     ["CMR – Compagnie Maritime du Rhône","FreightWiki & Co"],
     ["CMR – Compagnie Maritime du Rhône","Meridian Shipping"],
+    ["CMR – Compagnie Maritime du Rhône","BNP Paribas"],
+    ["CMR – Compagnie Maritime du Rhône","Sanofi"],
+    ["CMR – Compagnie Maritime du Rhône","Arianespace"],
+    ["CMR – Compagnie Maritime du Rhône","Thales"],
+    ["CMR – Compagnie Maritime du Rhône","BioNTech"],
     ["TransSped Logistics","CMR – Compagnie Maritime du Rhône"],
     ["Nova Energy","CMR – Compagnie Maritime du Rhône"],
     ["FreightWiki & Co","CMR – Compagnie Maritime du Rhône"],
+    ["Sanofi","BioNTech"],
+    ["Thales","Arianespace"],
+    ["Nova Energy","BNP Paribas"],
+    ["Arianespace","Nova Energy"],
   ],
   cycles: [
     { nodes: ["CMR – Compagnie Maritime du Rhône","TransSped Logistics","Nova Energy"], label:"CMR → TransSped → Nova", amount: 1240 },
@@ -636,49 +659,61 @@ function syncNow(){
   }, 700);
 }
 
-/* ============================ GRAPHE ============================ */
-const POS = {
-  "CMR – Compagnie Maritime du Rhône": [130,120],
-  "TransSped Logistics": [40,52],
-  "Nova Energy": [214,64],
-  "FreightWiki & Co": [46,196],
-  "Meridian Shipping": [224,184],
-};
+/* ============================ GRAPHE (simulation multi-secteurs) ============================ */
+const SELF = "CMR – Compagnie Maritime du Rhône";
+function sectorMeta(code){ return SECTORS.find(x=>x[0]===code) || SECTORS[0]; }
+function layout(){
+  const ids = Object.keys(state.nodes);
+  const outer = ids.filter(id => id !== SELF);
+  const n = outer.length, cx = 130, cy = 118, R = 92;
+  const pos = { [SELF]: [cx, cy] };
+  outer.forEach((id, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI/2;
+    pos[id] = [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+  });
+  return pos;
+}
 function renderGraph(){
   const svg = document.getElementById("gsvg");
-  const nids = Object.keys(state.nodes);
+  const pos = layout();
   const hl = state.highlightCycle ? state.cycles[state.highlightCycle].nodes : [];
   let s = '';
-  state.edges.forEach(e => {
+  state.edges.forEach((e, idx) => {
     const inC = hl.includes(e[0]) && hl.includes(e[1]);
-    s += `<line class="g-edge ${inC?'hl':''}" x1="${POS[e[0]][0]}" y1="${POS[e[0]][1]}" x2="${POS[e[1]][0]}" y2="${POS[e[1]][1]}" stroke-width="1.4" opacity=".6"/>`;
+    const [x1,y1] = pos[e[0]], [x2,y2] = pos[e[1]];
+    s += `<line class="g-edge ${inC?'hl':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${inC?2.4:1.2}" opacity=".5"/>`;
+    s += `<circle r="2.6" fill="var(--accent)" opacity=".9"><animateMotion dur="${2 + (idx%5)*0.45}s" repeatCount="indefinite" path="M ${x1} ${y1} L ${x2} ${y2}"/></circle>`;
   });
-  nids.forEach(id => {
-    const [x,y] = POS[id];
-    const self = id === "CMR – Compagnie Maritime du Rhône";
+  Object.keys(state.nodes).forEach(id => {
+    const [x,y] = pos[id];
+    const self = id === SELF;
     const inC = hl.includes(id);
+    const sec = sectorMeta(state.nodes[id].s);
+    const col = sec[3];
     s += `<g class="g-node" data-node="${id}">`
-      + `<circle cx="${x}" cy="${y}" r="${self?22:inC?12:9}" fill="${self?'var(--primary)':inC?'var(--accent)':'var(--surface)'}" stroke="${inC?'var(--accent)':self?'var(--primary)':'var(--secondary)'}" stroke-width="${inC?2.6:1.6}"/>`
-      + `<text x="${x}" y="${y + (self?4:3)}" text-anchor="middle" font-size="${self?12:9}" font-weight="700" fill="${self?'#0b1220':inC?'#0b1220':'var(--text)'}">${self?'VOUS':id.split(' ')[0]}</text>`
+      + `<circle cx="${x}" cy="${y}" r="${self?22:13}" fill="${self?'var(--primary)':'var(--surface)'}" stroke="${inC?'var(--accent)':col}" stroke-width="${inC?2.6:2}"/>`
+      + `<text x="${x}" y="${y + (self?4:3)}" text-anchor="middle" font-size="${self?11:8}" font-weight="700" fill="${self?'#0b1220':'var(--text)'}">${self?'VOUS':id.split(' ')[0]}</text>`
+      + `<text x="${x}" y="${y + (self?16:13)}" text-anchor="middle" font-size="7" fill="${col}">${sec[2]}</text>`
       + `</g>`;
   });
   svg.innerHTML = s;
-  svg.querySelectorAll('.g-node').forEach(g => {
-    g.addEventListener('click', () => openSheet(g.dataset.node));
-  });
+  svg.querySelectorAll('.g-node').forEach(g => g.addEventListener('click', () => openSheet(g.dataset.node)));
+  const nids = Object.keys(state.nodes);
   document.getElementById("gmeta").innerHTML = hl.length
     ? `<b>Cycle mis en évidence :</b> ${hl.map(h=>h.split(' ')[0]).join(' → ')} <span style="color:var(--accent)">⇆ bénéfice potentiel ${fmtEUR(state.cycles[state.highlightCycle].amount)}</span>`
-    : `<b>Graph étendu des paiements :</b> ${nids.length} nœuds, ${state.edges.length} flux en cascade, mise à jour en direct via WebSocket. Cliquez un nœud pour la fiche contrepartie.`;
+    : `<b>Réseau multi-secteurs :</b> ${nids.length} entreprises · ${state.edges.length} flux · simulation en direct. Cliquez un nœud pour la fiche.`;
 }
 function openSheet(id){
   const m = state.nodes[id];
+  const sec = sectorMeta(m.s);
   const sheet = document.getElementById("gsheet");
   sheet.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start">
       <div class="nm">${flag(m.c)||''} ${id}</div>
       <span style="color:var(--muted); cursor:pointer; font-size:14px" onclick="closeSheet()">✕</span>
     </div>
-    <div class="st"><span>Volume total (90 j)</span><b>${fmtEUR(m.vol)}</b></div>
+    <span class="sect-pill" style="background:${sec[3]}22; color:${sec[3]}">${sec[2]} ${sec[1]}</span>
+    <div class="st" style="margin-top:10px"><span>Volume total (90 j)</span><b>${fmtEUR(m.vol)}</b></div>
     <div class="st"><span>Transactions</span><b>${m.n}</b></div>
     <div class="st"><span>Pays</span><b>${m.c}</b></div>
     <div class="st"><span>Statut réseau</span><b style="color:var(--accent)">● Actif</b></div>`;
@@ -686,6 +721,29 @@ function openSheet(id){
 }
 function closeSheet(){ document.getElementById("gsheet").classList.remove("open"); }
 document.addEventListener('click', (e) => { if (!e.target.closest('.sheet') && !e.target.closest('.g-node')) closeSheet(); });
+
+/* ============================ SIMULATION LIVE ============================ */
+let simTimer = null, simOn = false;
+function toggleSim(){
+  simOn = !simOn;
+  const btn = document.getElementById("simToggle");
+  btn.classList.toggle("on", simOn);
+  btn.textContent = simOn ? '⏸ En cours' : '▶ Simuler';
+  if (simOn) { simTimer = setInterval(simulate, 2400); simulate(); }
+  else if (simTimer) clearInterval(simTimer);
+}
+function simulate(){
+  const ids = Object.keys(state.nodes);
+  const a = ids[Math.floor(Math.random()*ids.length)];
+  const b = ids[Math.floor(Math.random()*ids.length)];
+  if (a === b) return;
+  const amt = Math.round((200 + Math.random()*8800)/10)*10;
+  const sa = sectorMeta(state.nodes[a].s), sb = sectorMeta(state.nodes[b].s);
+  state.nodes[b].vol += amt; state.nodes[b].n += 1;
+  const f = document.getElementById("feed");
+  f.insertAdjacentHTML('afterbegin', `<div class="fe"><span style="color:${sb[3]}">${sb[2]}</span> ${a.split(' ')[0]} → ${b.split(' ')[0]} <b>+${fmtEUR(amt)}</b></div>`);
+  while (f.children.length > 4) f.removeChild(f.lastChild);
+}
 
 /* ============================ NAVIGATION & FLOWS ============================ */
 function goto(tab){
