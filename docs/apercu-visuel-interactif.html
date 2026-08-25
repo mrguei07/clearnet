@@ -30,7 +30,7 @@
   }
 
   /* ---- cadre téléphone ---- */
-  .stage { width: 100%; height: 100dvh; display: flex; align-items: center; justify-content: center; }
+  .stage { width: 100%; height: 100dvh; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; }
   .phone {
     position: relative;
     width: 390px;
@@ -155,10 +155,47 @@
   .toast { position: absolute; bottom: 96px; left: 20px; right: 20px; background: #0f172a; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 12px 14px; font-size: 13px; z-index: 90; display: none; align-items: center; gap: 8px; }
   .toast.show { display: flex; animation: up .3s; }
   @keyframes up { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* ---- toolbar + capture (store listing) ---- */
+  .toolbar { position: fixed; top: 12px; right: 12px; z-index: 100; display: flex; gap: 8px; }
+  .toolbar button { background: rgba(30,41,59,.92); border: 1px solid rgba(255,255,255,.14); color: var(--text); border-radius: 999px; padding: 9px 15px; font-size: 12px; font-weight: 700; cursor: pointer; backdrop-filter: blur(8px); }
+  .toolbar button.on { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+  .caption { display: none; font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -.2px; }
+  body.capture { background: linear-gradient(180deg, #16233a 0%, #05070d 72%); }
+  body.capture .toolbar { display: none; }
+  body.capture .caption { display: block; }
+  body.capture .phone { height: 820px; max-height: 96dvh; box-shadow: 0 34px 70px -22px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.07); }
+
+  /* ---- header icons ---- */
+  .head-actions { display: flex; align-items: center; gap: 12px; }
+  .icon-btn { position: relative; font-size: 19px; cursor: pointer; line-height: 1; }
+  .icon-btn .bdg { position: absolute; top: -3px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; }
+
+  /* ---- sous-écrans (notifications / profil) ---- */
+  .sub-header { display: flex; align-items: center; gap: 14px; padding: 62px 20px 12px; }
+  .back { color: var(--primary); font-size: 15px; font-weight: 700; cursor: pointer; }
+  .sub-title { font-size: 20px; font-weight: 800; }
+  .notif { display: flex; gap: 12px; padding: 14px; margin: 0 20px 10px; background: var(--surface); border-radius: 14px; }
+  .notif .ico { width: 36px; height: 36px; border-radius: 10px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .notif .n-title { font-size: 14px; font-weight: 700; }
+  .notif .n-body { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  .notif .n-time { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .prof-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; }
+  .prof-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; }
+  .prof-head .n { font-size: 18px; font-weight: 800; }
+  .prof-head .e { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .prof-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
+  .prof-row .l { font-size: 14px; font-weight: 600; }
+  .prof-row .v { font-size: 13px; color: var(--muted); }
+  .prof-row .chev { color: var(--muted); }
 </style>
 </head>
 <body>
 <div class="stage">
+  <div class="toolbar">
+    <button id="capture-btn" onclick="toggleCapture()">📸 Mode capture</button>
+  </div>
   <div class="phone" id="phone">
     <div class="notch"></div>
 
@@ -199,7 +236,11 @@
           <div class="hi">Bonjour</div>
           <div class="sector" id="sector-badge">Supply Chain</div>
         </div>
-        <div class="out" onclick="logout()">Déconnexion</div>
+        <div class="head-actions">
+          <span class="icon-btn" onclick="showOverlay('notifications')">🔔<i class="bdg"></i></span>
+          <span class="avatar" id="avatar" onclick="showOverlay('profile')">A</span>
+          <span class="out" onclick="logout()">Déconnexion</span>
+        </div>
       </div>
       <div class="tab-content" id="tab-content"></div>
       <div class="tabbar">
@@ -209,6 +250,24 @@
         <div class="tab" data-tab="billing" onclick="setTab('billing')"><div class="t">Abonnement</div><div class="dot"></div></div>
       </div>
       <button class="fab" id="fab" onclick="openNewTx()" style="display:none">+</button>
+    </section>
+
+    <!-- ============ NOTIFICATIONS ============ -->
+    <section class="screen" id="scr-notifications">
+      <div class="sub-header">
+        <span class="back" onclick="backToApp()">‹ Retour</span>
+        <span class="sub-title">Notifications</span>
+      </div>
+      <div class="scroll" id="notif-content"></div>
+    </section>
+
+    <!-- ============ PROFIL ============ -->
+    <section class="screen" id="scr-profile">
+      <div class="sub-header">
+        <span class="back" onclick="backToApp()">‹ Retour</span>
+        <span class="sub-title">Profil</span>
+      </div>
+      <div class="scroll" id="prof-content"></div>
     </section>
 
     <!-- modal générique -->
@@ -221,6 +280,7 @@
     </div>
     <div class="toast" id="toast"><span style="color:var(--accent)">●</span><span id="toast-txt"></span></div>
   </div>
+  <div class="caption" id="caption">ClearNet — Accueil</div>
 </div>
 
 <script>
@@ -273,9 +333,10 @@ function applyPalette(p){
   r.setProperty('--on-primary', lum > 0.55 ? '#0b1220' : '#ffffff');
 }
 function show(screen){
-  ['login','register','app'].forEach(s => $('scr-'+s).classList.remove('active'));
+  ['login','register','app','notifications','profile'].forEach(s => $('scr-'+s).classList.remove('active'));
   $('scr-'+screen).classList.add('active');
   if(screen==='app'){ renderTabs(); }
+  updateCaption();
 }
 function toast(msg){ $('toast-txt').textContent = msg; $('toast').classList.add('show'); setTimeout(()=>$('toast').classList.remove('show'), 2200); }
 
@@ -286,6 +347,8 @@ function doLogin(){
   $('login-err').textContent = '';
   // démo : secteur Tech pour montrer le thème dynamique
   setSector('Technology');
+  userName = 'Air France'; userEmail = e;
+  setUser(userName);
   show('app');
 }
 function doRegister(){
@@ -293,6 +356,8 @@ function doRegister(){
   const n = $('reg-name').value.trim(), e = $('reg-email').value.trim(), p = $('reg-pass').value;
   if(!n || !e || p.length < 6){ $('reg-err').textContent = 'Nom, email et mot de passe (6+ caractères) sont requis.'; return; }
   $('reg-err').textContent = '';
+  userName = n; userEmail = e;
+  setUser(userName);
   show('app');
 }
 function setSector(code){
@@ -309,6 +374,7 @@ function setTab(tab){
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
   $('fab').style.display = (tab === 'tx') ? 'flex' : 'none';
   renderTabs();
+  updateCaption();
 }
 function renderTabs(){
   const c = $('tab-content');
@@ -468,6 +534,65 @@ function initGraph(){
   let last = 0;
   function frame(t){ if(t-last>16){ tick(); last = t; } requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
+}
+
+/* ============================== notifications & profil ============================== */
+let userName = 'Air France';
+let userEmail = 'contact@airfrance.fr';
+
+function showOverlay(name){
+  ['login','register','app','notifications','profile'].forEach(s => $('scr-'+s).classList.remove('active'));
+  $('scr-'+name).classList.add('active');
+  if(name==='notifications') renderNotifications();
+  if(name==='profile') renderProfile();
+  updateCaption();
+}
+function backToApp(){ show('app'); }
+function renderNotifications(){
+  const items = [
+    {ico:'✓', bg:'rgba(52,211,153,.15)', c:'#34d399', t:'Compensation réglée', b:'Air France → Vous · +245 000 €', time:'il y a 2 h'},
+    {ico:'⏳', bg:'rgba(245,158,11,.15)', c:'#f59e0b', t:'Règlement en attente', b:'Sanofi → BioMérieux · 120 300 €', time:'il y a 5 h'},
+    {ico:'⚠', bg:'rgba(248,113,113,.15)', c:'#f87171', t:'Quota mensuel à 80 %', b:'Passez au niveau supérieur pour continuer', time:'il y a 1 j'},
+    {ico:'+', bg:'rgba(56,189,248,.15)', c:'#38bdf8', t:'Nouveau partenaire connecté', b:'Dassault Aviation a rejoint votre réseau', time:'il y a 2 j'},
+  ];
+  $('notif-content').innerHTML = items.map(n => `
+    <div class="notif">
+      <div class="ico" style="background:${n.bg};color:${n.c}">${n.ico}</div>
+      <div><div class="n-title">${n.t}</div><div class="n-body">${n.b}</div><div class="n-time">${n.time}</div></div>
+    </div>`).join('');
+}
+function renderProfile(){
+  const ind = INDUSTRIES.find(i => i.code === industryCode) || INDUSTRIES[0];
+  $('prof-content').innerHTML = `
+    <div class="prof-head">
+      <div class="prof-avatar">${$('avatar').textContent}</div>
+      <div><div class="n">${userName}</div><div class="e">${userEmail}</div></div>
+    </div>
+    <div class="prof-row"><span class="l">Secteur d'activité</span><span class="v">${ind.glyph} ${ind.label}</span></div>
+    <div class="prof-row" onclick="setTab('billing');backToApp()"><span class="l">Abonnement</span><span class="chev">›</span></div>
+    <div class="prof-row"><span class="l">Sécurité</span><span class="chev">›</span></div>
+    <div class="prof-row"><span class="l">Aide & support</span><span class="chev">›</span></div>
+    <div class="prof-row" onclick="logout()"><span class="l" style="color:var(--muted)">Se déconnecter</span></div>
+    <div class="prof-row" onclick="confirmDelete()"><span class="l" style="color:var(--danger)">Supprimer mon compte</span></div>`;
+}
+function setUser(name){
+  $('avatar').textContent = (name||'C').trim().charAt(0).toUpperCase();
+}
+
+/* ============================== capture (store listing) ============================== */
+function toggleCapture(){
+  document.body.classList.toggle('capture');
+  const on = document.body.classList.contains('capture');
+  $('capture-btn').classList.toggle('on', on);
+  $('capture-btn').textContent = on ? '✓ Capture ON' : '📸 Mode capture';
+  updateCaption();
+}
+function updateCaption(){
+  const labels = { login:'Connexion', register:'Inscription', notifications:'Notifications', profile:'Profil', home:'Accueil', tx:'Transactions', graph:'Réseau de compensation', billing:'Abonnement' };
+  let key = 'login';
+  for (const k of ['notifications','profile','register','login']) if ($('scr-'+k).classList.contains('active')) { key = k; break; }
+  if ($('scr-app').classList.contains('active')) key = currentTab;
+  $('caption').textContent = 'ClearNet — ' + (labels[key] || 'Accueil');
 }
 
 /* ============================== init ============================== */
