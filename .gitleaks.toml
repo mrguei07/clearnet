@@ -1,0 +1,17 @@
+title = "ClearNet gitleaks config"
+
+# Les valeurs ci-dessous sont des secrets de DÉMONSTRATION / d'exemple,
+# documentés dans les .env.example et les docs. Ils ne sont jamais utilisés
+# en production (les vrais secrets sont injectés via environnement / Vault).
+[allowlist]
+  description = "Secrets d'exemple/dév documentés (jamais en prod)"
+  regexes = [
+    '''clearnet123''',
+    '''change-me-in-production''',
+    '''demo-secret-change-me''',
+    '''0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
+  ]
+  paths = [
+    '''\.env\.example$''',
+    '''\.env\.prod\.example$''',
+  ]
