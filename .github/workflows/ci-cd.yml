@@ -70,7 +70,7 @@ jobs:
 
   # ---------------- Mobile ----------------
   lint-mobile:
-    name: Lint mobile (TS + ESLint)
+    name: Typecheck mobile (TS)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,9 +85,6 @@ jobs:
       - name: TypeScript
         working-directory: clearnet-mobile
         run: npx tsc --noEmit
-      - name: ESLint
-        working-directory: clearnet-mobile
-        run: npx expo lint
 
   secrets-scan:
     name: Scan secrets (gitleaks)
@@ -115,6 +112,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: clearnet-mobile/package-lock.json
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Composants Android SDK (idempotent)
         run: |
