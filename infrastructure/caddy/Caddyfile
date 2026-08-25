@@ -1,0 +1,23 @@
+# ---------------------------------------------------------------------------
+# ClearNet — Reverse proxy HTTPS (Caddy 2)
+#
+#   - Local : SITE_ADDRESS=localhost      -> Caddy utilise son CA interne (tls
+#             internal) automatiquement ; aucun certificat externe requis.
+#   - VPS   : SITE_ADDRESS=api.clearnet.fr -> Let's Encrypt automatique (HTTP-01
+#             + redirection HTTPS), à condition que le DNS pointe déjà vers la
+#             machine et que les ports 80/443 soient ouverts.
+#
+# Le seul service exposé publiquement est Caddy (80/443). Neo4j, Redis et le
+# backend restent sur le réseau Docker interne et sont inaccessibles de l'extérieur.
+# ---------------------------------------------------------------------------
+
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	reverse_proxy backend:3000
+
+	# Journal d'accès au format JSON (réutilisable par un SIEM)
+	log {
+		output stdout
+		format json
+	}
+}

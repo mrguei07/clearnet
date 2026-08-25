@@ -306,18 +306,18 @@ export class TransactionsService {
   }> {
     const session = this.driver.session();
     try {
-      const [receivedResult, sentResult] = await Promise.all([
-        session.run(
-          `MATCH (me:User {email: $email})-[:RECEIVED]->(t:Transaction)
-           RETURN COALESCE(SUM(t.amount), 0) AS total`,
-          { email },
-        ),
-        session.run(
-          `MATCH (me:User {email: $email})-[:SENT]->(t:Transaction)
-           RETURN COALESCE(SUM(t.amount), 0) AS total`,
-          { email },
-        ),
-      ]);
+      // Requêtes SÉQUENTIELLES : le driver Neo4j interdit les session.run()
+      // concurrents sur la même session (transactions implicites imbriquées).
+      const receivedResult = await session.run(
+        `MATCH (me:User {email: $email})-[:RECEIVED]->(t:Transaction)
+         RETURN COALESCE(SUM(t.amount), 0) AS total`,
+        { email },
+      );
+      const sentResult = await session.run(
+        `MATCH (me:User {email: $email})-[:SENT]->(t:Transaction)
+         RETURN COALESCE(SUM(t.amount), 0) AS total`,
+        { email },
+      );
       const received = Number(receivedResult.records[0]?.get('total') ?? 0);
       const sent = Number(sentResult.records[0]?.get('total') ?? 0);
       const [lastTransaction] = await this.history(email, 1);

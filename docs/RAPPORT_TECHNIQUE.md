@@ -1,6 +1,7 @@
 # CLEARNET — Rapport technique approfondi (V1.3)
 
 > Version : 1.3.0 · Date : 11/08/2026 · Statut : **validé (build + tests + helm lint/template PASS)**
+> Actualisé : 17/08/2026 — planification V1.5 livrée (§15).
 > Version anglaise du rapport HTML : `RAPPORT_TECHNIQUE.html` (synthèse visuelle).
 
 ---
@@ -19,7 +20,9 @@
 10. [Points de vigilance traités (3.1–3.5)](#10-points-de-vigilance-traités-31–35)
 11. [Qualité, tests & CI](#11-qualité-tests--ci)
 12. [Stratégie de déploiement & early adopters](#12-stratégie-de-déploiement--early-adopters)
-13. [Limites & perspectives](#13-limites--perspectives)
+13. [Facturation & Pricing (V1.4 → V1.5)](#13-facturation--pricing-v14--v15)
+14. [Limites & perspectives](#14-limites--perspectives)
+15. [V1.5 — Préparation internationale & industrialisation ZK (planification livrée)](#15-v15--préparation-internationale--industrialisation-zk-planification-livrée)
 
 ---
 
@@ -311,6 +314,9 @@ Services : `neo4j` (5.26, healthcheck), `redis` (7-alpine, healthcheck), `backen
 | POST | `/demo/seed` | **X-Demo-Key** | alice/bob/carol + 3 tx si vide ; `{industry?}` (V1.3) |
 | GET | `/demo/status` | **X-Demo-Key** | Compteurs users/transactions |
 | GET | `/zkproof/download/:txId` | JWT | Preuve Groth16 d'une tx |
+| POST | `/billing/create-checkout` | JWT | Stripe : session abonnement `{tier}` (Essentiel/Pro/Enterprise, défaut Pro) |
+| GET | `/billing/status` | JWT | `{tier, customerId, quotaUsed, quotaMax}` (null = illimité) |
+| POST | `/webhooks/stripe` | IP+signature | `customer.subscription.*` → tier (Price ID → metadata → défaut PRO) |
 
 **Temps réel** : namespace socket.io `/transactions`, événement `transaction:status`.
 
@@ -335,6 +341,13 @@ Services : `neo4j` (5.26, healthcheck), `redis` (7-alpine, healthcheck), `backen
 | `QUEUE_ENABLED` · `REDIS_HOST` · `REDIS_PORT` · `REDIS_PASSWORD` | false · redis · 6379 · vide | File BullMQ (3.1 : décision dynamique) |
 | `QUEUE_ATTEMPTS` · `QUEUE_BACKOFF_MS` | 5 · 5000 | Retries exponentielles |
 | `SLACK_WEBHOOK_URL` | vide | Échecs définitifs → Slack (3.3) |
+| `BILLING_ENABLED` | false | Facturation Stripe (off par défaut) |
+| `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` | vide | Clés Stripe (⚠️ secrets, `existingSecret` en prod) |
+| `STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE` | price_*_default | Price IDs des 3 niveaux payants |
+| `BILLING_FREE_QUOTA` | 15 | Plafond Free (mois civil UTC) → 402 au-delà |
+| `BILLING_SUCCESS_URL` · `BILLING_CANCEL_URL` | clearnet://billing(?ok=1) | Retour checkout mobile |
+| `STRIPE_WEBHOOK_IPS` | vide | Repli CSV allowlist webhooks (fail-closed) |
+| `EARLY_ADOPTER_ENABLED` | false | Exemption quota des early adopters |
 
 ---
 
@@ -420,7 +433,34 @@ actif** · **audit FailedJob + Slack opérationnel** · **secrets jamais en `--s
 
 ---
 
-## 13. Limites & perspectives
+## 13. Facturation & Pricing (V1.4 → V1.5)
+
+**V1.4** a introduit Stripe (checkout hébergé, webhook signé + IP allowlist fail-closed,
+quota freemium, alerte Slack 80 %) ; **V1.5 Pricing** remplace le « Pro unique » par une
+**grille 4 niveaux** — implémentée, build ✅, tests 30/30 ✅ (`TARIFICATION_V1_5.md`).
+
+| Niveau | Opérations / mois | Commission | Prix mensuel | Stripe Price ID |
+|---|---|---|---|---|
+| **Free** | 15 (limité) | 2,0 % | 0 € | — (pas de paiement) |
+| **Essentiel** | 50 | 1,5 % | 99 € | `price_essential_xxx` |
+| **Pro** | 500 | 1,2 % | 499 € | `price_pro_xxx` |
+| **Enterprise** | Illimité | 0,9 % | 1 999 € | `price_enterprise_xxx` |
+
+- **Règle d'or** : au-delà de 15 tx/mois (mois civil UTC), l'API renvoie
+  `402 Payment Required` (`BILLING_QUOTA_EXCEEDED`) invitant à passer à l'offre Essentiel ;
+  Essentiel (50) et Pro (500) plafonnés pareillement, Enterprise illimité.
+- **Source de vérité** : `clearnet-backend/src/billing/pricing.ts` (quotas, commissions,
+  Price IDs, `tierFromPrice`). Checkout : `POST /api/billing/create-checkout {tier}`
+  (défaut PRO) ; statut : `GET /api/billing/status` (`quotaMax: null` = illimité) ;
+  webhook : tier par Price ID configuré → repli `metadata.tier` → défaut PRO.
+- **Commission** : `feeRate` du niveau timbré sur chaque nœud `Transaction` (prélèvement automatisé : P2).
+- **Config** : `STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE`, `BILLING_FREE_QUOTA=15` (cf. §8) ;
+  Helm `values*.yaml` + configmap à jour. Mobile : écran Abonnement (4 niveaux, barre de quota
+  pour tout quota fini, `∞` Enterprise).
+
+---
+
+## 14. Limites & perspectives
 
 - **Métriques BullMQ** : l'exposition `/metrics` prom-client (jobs, latences) est l'étape
   suivante d'industrialisation (dashboard Grafana documente les keys Redis en attendant).
@@ -431,3 +471,30 @@ actif** · **audit FailedJob + Slack opérationnel** · **secrets jamais en `--s
 - **Échecs de règlement** : la transaction reste valide hors-chaîne (dette traçable via
   `FAILED` + `FailedJob`) — un mécanisme de reprise automatique des dettes est une
   perspective produit.
+
+---
+
+## 15. V1.5 — Préparation internationale & industrialisation ZK (planification livrée)
+
+**Focus V1.5** : internationalisation (i18n 4 langues, multi-devises EUR/USD/GBP/CHF, convertisseur
+temps réel), socle ZK industrialisé (batch netting Poseidon, cérémonie Phase 2, déploiement L2) et
+synchronisation on-chain → Neo4j. Les six plans sont **livrés, prêts à exécuter, off par défaut** —
+aucun changement de comportement V1.4 tant que les flags ne sont pas activés.
+
+| Document | Périmètre | Flag d'activation | État |
+|---|---|---|---|
+| `I18N_CURRENCY_UPGRADE.md` | i18n backend 4 langues (fr/en/es/de), multi-devises via oracles (Chainlink + fallback statique), **convertisseur temps réel** (REST `/api/fx/*` + WS `/fx` `fx:rate`), écran mobile Convertisseur + paiement pré-rempli | `I18N_ENABLED` · `MULTI_CURRENCY_ENABLED` | ✅ Plan exécutable (3 j) |
+| `RECOMMANDATION_DEPLOIEMENT_L2.md` | Déploiement du socle ZK sur **Polygon zkEVM** (batch proofs → ≪ 0,01 $/tx ; Arbitrum Orbit ≠ ZK — corrigé) | — (déploiement) | ✅ Reco validée |
+| `CEREMONIE_TRUSTED_SETUP.md` | Cérémonie Phase 2 (Perpetual Powers of Tau + snarkjs web SRI/air-gap Tails, 8–12 contributeurs, destruction des déchets toxiques) | circuit `clearing.circom` (à geler) | ✅ Procédure 3 sem. |
+| `SYNC_ONCHAIN_NEO4J.md` | Indexeur on-chain → Neo4j : finalité **chaîne-dépendante**, reorgs** soft** (statuts, pas de purge), checkpoint atomique | `SYNC_ENABLED` | ✅ Architecture + reorgPolicy |
+| `RECONCILIATION_WORKER_INTEGRATION.md` | Worker BullMQ `reconciliation` (cron 5 min) : corrélation par `onchainHash`/`pendingTxHash`, `PENDING → SUCCESS / REORG_ROLLBACK`, métriques prom-client | `RECONCILIATION_ENABLED` | ✅ Code + diffs + spec (4 tests) |
+| `ZK_BATCH_INTEGRATION.md` | Circuit `ClearNetBatchNetting.circom` (Poseidon), `VerifierBatch.sol` (snarkjs), `ZkBatchService` (collect → proof → submit), `CompensationEngine.settleBatchWithProof`, `IZkBatchVerifier` (interface additive) | `ZK_BATCH_ENABLED` | ✅ Code + tests (2 circuit + 3 contrat + 4 backend) |
+
+**Coordination** : l'ordre d'exécution s'enchaîne — gel du circuit → cérémonie Phase 2 → déploiement
+zkEVM (staging Sepolia) → batch ZK + réconciliation (cohérence des statuts) → i18n/FX (convertisseur,
+`displayCurrency`/`displayAmount` additifs). Suite de tests cible V1.5 : **30 + 4 (reconciliation) +
+4 (zkbatch) = 38 backend** + contrats 5/5 existants + `VerifierBatch.sol` — à verrouiller à
+l'implémentation (chaque flag reste indépendant et réversible).
+**Revue croisée** : `REVUE_V1_5_VIGILANCE.md` — 6 points de vigilance (keyring sécurisé HKDF,
+correction circom, mapping batch×réconciliation, oracle multi-source, benchmarks gas, gate de gel)
++ roadmap S1→S4 et matrice de suivi.

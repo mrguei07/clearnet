@@ -48,12 +48,12 @@ if (-not $SkipDevice -and -not $SkipInstall) {
   Check "Install APK" { & $adb install -r $apk | Out-Null; Assert ($LASTEXITCODE -eq 0) "echec install" }
 }
 if (-not $SkipDevice) {
-  Check "Lancement (am start)" { & $adb shell am start -n com.clearnet/.MainActivity | Out-Null; Assert ($LASTEXITCODE -eq 0) "echec am start" }
+  Check "Lancement (am start)" { & $adb shell am start -n com.clearnet.mobile/.MainActivity | Out-Null; Assert ($LASTEXITCODE -eq 0) "echec am start" }
   Start-Sleep -Seconds 5
   Check "Processus vivant apres 5 s" {
-    $pid = (& $adb shell pidof com.clearnet).Trim()
-    if (-not $pid) {
-      $line = (& $adb shell ps) | Select-String "com\.clearnet"
+    $procPid = (& $adb shell pidof com.clearnet.mobile).Trim()
+    if (-not $procPid) {
+      $line = (& $adb shell ps) | Select-String "com.clearnet.mobile"
       Assert ($null -ne $line) "pidof vide ET aucun processus (Android 10+ : `ps` vide aussi)"
     }
   }
@@ -62,8 +62,8 @@ if (-not $SkipDevice) {
     Assert ($null -eq $fatal) "FATAL EXCEPTION detectee dans logcat"
   }
   Check "Splash screen (screencap)" {
-    & $adb shell am force-stop com.clearnet | Out-Null
-    & $adb shell am start -n com.clearnet/.MainActivity | Out-Null
+    & $adb shell am force-stop com.clearnet.mobile | Out-Null
+    & $adb shell am start -n com.clearnet.mobile/.MainActivity | Out-Null
     Start-Sleep -Milliseconds 1500
     & $adb exec-out screencap -p > splash-check.png
     Assert ((Get-Item splash-check.png).Length -gt 1000) "screencap vide - verifier visuellement splash-check.png"

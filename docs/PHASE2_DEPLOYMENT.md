@@ -61,7 +61,7 @@ kubectl -n clearnet get pods,svc,hpa,ingress
 ```
 
 > Neo4j : StatefulSet + PVC (`storage.size=10Gi`), auth `neo4j/<password>` via secret.
-> Backend : HPA 2→5 replicas @70% CPU ; probes `/health` (startup/ready/liveness).
+> Backend : HPA 2→5 replicas @70% CPU ; probes `/api/health` (startup/ready/liveness, corrigées).
 > Devnet blockchain : `--set blockchain.enabled=true` (pod Hardhat, port 8545) — destiné
 > uniquement à l'évaluation ; éteint en prod (`enabled: false` par défaut).
 

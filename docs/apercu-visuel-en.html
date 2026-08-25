@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearNet V1.4 — Interactive visual preview</title>
+<style>
+  :root{
+    --primary:#38bdf8; --secondary:#0ea5e9; --accent:#f59e0b;
+    --bg:#0b1220; --surface:#1e293b; --text:#e2e8f0; --muted:#94a3b8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:-apple-system, "Segoe UI", Roboto, sans-serif;
+    background:linear-gradient(160deg,#060a12 0%,#0b1220 55%,#101a2e 100%);
+    color:var(--text); min-height:100vh; padding:32px 20px 60px;
+  }
+  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; max-width:1080px; margin:0 auto 28px}
+  h1{font-size:20px; font-weight:700}
+  h1 span{color:var(--primary)}
+  .brand{height:36px; width:auto}
+  .logoimg{height:44px; width:auto; margin:4px auto 8px; display:block}
+  .controls{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+  label.sect{font-size:13px; color:var(--muted)}
+  select{
+    background:var(--surface); color:var(--text); border:1px solid rgba(148,163,184,.4);
+    padding:8px 12px; border-radius:10px; font-size:13px; max-width:280px;
+  }
+  .hint{max-width:1080px; margin:0 auto 22px; font-size:13px; color:var(--muted); line-height:1.6}
+  .hint b{color:var(--text)}
+  .stage{display:flex; gap:28px; max-width:1080px; margin:0 auto; flex-wrap:wrap; justify-content:center}
+
+  .phone{
+    width:300px; border-radius:44px; border:3px solid #2c3a52; background:#000;
+    padding:10px; box-shadow:0 24px 60px rgba(0,0,0,.55); position:relative;
+  }
+  .phone-screen{
+    background:var(--bg); border-radius:34px; overflow:hidden; height:620px;
+    display:flex; flex-direction:column; position:relative;
+  }
+  .statusbar{display:flex; justify-content:space-between; align-items:center; padding:12px 20px 6px; font-size:12px; font-weight:600; color:var(--text)}
+  .island{width:86px; height:20px; background:#000; border-radius:12px; margin:-4px auto 0}
+  .screen{flex:1; overflow-y:auto; padding:0 16px 16px; scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+
+  /* Auth */
+  .auth-body{padding-top:30px; text-align:center}
+  .logo{font-size:30px; font-weight:800; color:var(--primary); letter-spacing:.5px}
+  .sub{font-size:12px; color:var(--muted); margin:8px auto 22px; max-width:235px; line-height:1.5}
+  .field{background:var(--surface); border-radius:12px; padding:11px 14px; margin-bottom:11px; text-align:left; font-size:13px; color:var(--muted); border:1.5px solid transparent; transition:border .2s}
+  .field.focus{border-color:var(--primary)}
+  .field input{background:transparent; border:none; outline:none; color:var(--text); font-size:13px; width:100%; margin-top:2px}
+  .field input::placeholder{color:var(--muted)}
+  .btn{background:var(--primary); color:#0b1220; font-weight:700; border-radius:12px; padding:14px; font-size:14.5px; margin-top:6px; cursor:pointer; text-align:center; transition:opacity .2s}
+  .btn:active{opacity:.75}
+  .btn.ghost{background:transparent; border:1.5px solid var(--primary); color:var(--primary)}
+  .spinner{display:inline-block; width:14px; height:14px; border:2.5px solid rgba(11,18,32,.35); border-top-color:#0b1220; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .link{color:var(--primary); font-size:13px; margin-top:14px; cursor:pointer}
+  .chips{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin:6px 0 16px}
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:7px 11px; border-radius:999px;
+    border:1.5px solid var(--surface); font-size:11px; color:var(--muted); cursor:pointer; transition:all .15s;
+  }
+  .chip .g{color:var(--secondary); font-size:12px}
+  .chip.on{background:var(--primary); border-color:var(--primary); color:#0b1220; font-weight:600}
+  .chip.on .g{color:#0b1220}
+  .acc-ok{border:1.5px solid var(--primary); border-radius:14px; padding:20px; margin-top:60px}
+  .acc-ok .who{font-size:15px; font-weight:700; margin:8px 0 4px}
+  .acc-ok .em{font-size:11.5px; color:var(--muted)}
+
+  /* Home */
+  .hdr{display:flex; justify-content:space-between; align-items:center; padding:18px 2px 12px}
+  .hdr h2{font-size:20px}
+  .logout{font-size:12.5px; color:var(--muted); cursor:pointer}
+  .sectorbadge{display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:999px; padding:6px 14px 6px 8px; margin:0 2px 12px; width:fit-content; font-size:12px}
+  .sectorbadge .sg{width:26px; height:26px; border-radius:50%; background:var(--primary); color:#0b1220; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700}
+  .sectorbadge .sl{color:var(--text)}
+  .balance{background:var(--primary); border-radius:18px; padding:20px; color:#0b1220; transition:background .3s}
+  .balance .lbl{font-size:12px; opacity:.75}
+  .balance .amt{font-size:30px; font-weight:800; margin:4px 0 10px; font-variant-numeric:tabular-nums}
+  .balance .last{font-size:11.5px; opacity:.85}
+  .bump{animation:bump .35s ease}
+  @keyframes bump{0%{transform:scale(1)}45%{transform:scale(1.035)}100%{transform:scale(1)}}
+  .card{background:var(--surface); border-radius:14px; padding:14px 16px; margin-top:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer}
+  .card .t{font-size:14px; font-weight:600}
+  .card .s{font-size:11px; color:var(--muted); margin-top:2px}
+  .arrow{color:var(--primary); font-size:18px}
+  .live{margin-top:12px; background:var(--surface); border-radius:12px; padding:10px 14px; font-size:12px; color:var(--muted); display:flex; align-items:center; gap:9px}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--accent)}
+  .cycles{background:var(--surface); border-radius:14px; padding:14px 16px; margin-top:12px; border:1px solid rgba(56,189,248,.25)}
+  .cycles .ct{font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px}
+  .cycles .ct .nn{background:var(--accent); color:#0b1220; font-size:10px; font-weight:800; border-radius:999px; padding:2px 8px}
+  .cycle-row{display:flex; align-items:center; justify-content:space-between; background:var(--bg); border-radius:10px; padding:9px 11px; margin-top:8px; font-size:11.5px; cursor:pointer}
+  .cycle-row .cr{color:var(--primary); font-weight:600}
+  .cycle-row .ca{font-weight:700; color:var(--text); font-variant-numeric:tabular-nums}
+  .cycle-row:hover{border:1px solid var(--primary)}
+
+  /* Transactions */
+  .ttl{display:flex; justify-content:space-between; align-items:center; padding:18px 2px 12px}
+  .ttl h2{font-size:18px}
+  .newbtn{background:var(--primary); color:#0b1220; font-size:12.5px; font-weight:700; padding:9px 13px; border-radius:10px; cursor:pointer}
+  .newbtn:active{opacity:.75}
+  .offchip{font-size:11px; color:var(--muted); border:1px solid rgba(148,163,184,.35); width:fit-content; padding:6px 10px; border-radius:999px; margin-bottom:10px; cursor:pointer}
+  .sync{background:var(--surface); border-radius:12px; padding:10px 14px; font-size:12px; color:var(--primary); margin-bottom:4px; cursor:pointer}
+  .bar{height:6px; background:rgba(148,163,184,.25); border-radius:99px; overflow:hidden; margin-top:8px}
+  .bar i{display:block; height:100%; width:0%; background:var(--primary); border-radius:99px; transition:width .3s}
+  .offline{font-size:10.5px; color:var(--muted); text-align:right; margin:-2px 4px 8px}
+  .day{font-size:12px; color:var(--muted); margin:14px 2px 8px; font-weight:600}
+  .tx{background:var(--surface); border-radius:13px; padding:12px 14px; margin-bottom:9px; animation:tin .35s ease}
+  @keyframes tin{from{opacity:0; transform:translateY(-8px)}to{opacity:1; transform:none}}
+  .tx .row{display:flex; justify-content:space-between; align-items:baseline}
+  .tx .amt{font-weight:700; color:var(--primary); font-size:14.5px; font-variant-numeric:tabular-nums}
+  .tx .amt.in{color:var(--accent)}
+  .tx .tm{font-size:10.5px; color:var(--muted)}
+  .tx .dt{font-size:12.5px; margin-top:4px; color:var(--text)}
+  .tx .nt{font-size:11px; color:var(--muted); margin-top:2px}
+  .badge{display:inline-flex; align-items:center; gap:4px; background:var(--bg); border-radius:999px; padding:3px 9px; font-size:10.5px; font-weight:700; margin-top:7px}
+  .more{border:1.5px solid var(--primary); border-radius:11px; padding:11px; text-align:center; color:var(--primary); font-size:13px; font-weight:600; margin-top:6px; cursor:pointer}
+
+  /* Modal nouveaux paiements */
+  .modal{position:absolute; inset:0; background:rgba(2,6,14,.72); display:none; align-items:flex-end; z-index:5}
+  .modal.open{display:flex}
+  .modal-card{background:var(--bg); width:100%; border-radius:22px 22px 0 0; padding:20px 16px 26px; border:1px solid rgba(148,163,184,.25); border-bottom:none; animation:up .25s ease}
+  @keyframes up{from{transform:translateY(100%)}to{transform:none}}
+  .m-title{font-size:15.5px; font-weight:700; margin-bottom:14px}
+  .m-row{display:flex; gap:10px}
+  .m-btn{flex:1; border-radius:12px; padding:13px; text-align:center; font-weight:700; font-size:13px; cursor:pointer}
+  .m-btn.cancel{border:1.5px solid var(--muted); color:var(--muted)}
+  .m-btn.ok{background:var(--primary); color:#0b1220}
+  .flag{font-size:12px}
+
+  /* Graph */
+  .netstatus{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); padding:16px 2px 8px}
+  .netdot{width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); animation:blink 2.2s infinite}
+  .netdot.off{background:#f87171; box-shadow:none; animation:none}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+  .graphwrap{position:relative}
+  .graphsvg{width:100%; height:250px; display:block}
+  .g-node{cursor:pointer}
+  .g-node circle{transition:r .2s}
+  .g-node:hover circle{stroke:var(--accent); stroke-width:2.6}
+  .g-edge{stroke:var(--secondary); transition:stroke .3s}
+  .g-edge.hl{stroke:var(--accent); stroke-width:2.6; animation:edgepulse 1.6s infinite}
+  .g-edge.hl2{stroke:var(--accent); stroke-width:2.2}
+  .gn:hover{fill:var(--surface); stroke:var(--accent)}
+  @keyframes edgepulse{0%,100%{opacity:.25}50%{opacity:1}}
+  .netcard{background:var(--surface); border-radius:14px; padding:13px 15px; margin-top:14px; font-size:12px; color:var(--muted); line-height:1.55}
+  .sheet{position:absolute; left:10px; right:10px; bottom:0; background:var(--surface); border-radius:16px; padding:14px; display:none; z-index:4; box-shadow:0 -8px 30px rgba(0,0,0,.45)}
+  .sheet.open{display:block; animation:up .25s ease}
+  .sheet .nm{font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px}
+  .sheet .st{font-size:11.5px; color:var(--muted); margin-top:8px; display:flex; justify-content:space-between}
+  .sheet .st b{color:var(--text)}
+
+  /* Billing */
+  .tier{background:var(--surface); border-radius:15px; padding:16px; margin-top:16px}
+  .tier .tr{display:flex; justify-content:space-between; font-size:13px}
+  .tier .tr b{font-size:14px}
+  .tier .tr b.cur{color:var(--primary)}
+  .q{font-size:11.5px; color:var(--muted)}
+  .q.warn{color:#f87171; font-weight:600}
+  .cta{background:var(--primary); color:#0b1220; border-radius:12px; padding:13px; text-align:center; font-weight:700; font-size:13px; margin-top:16px; cursor:pointer}
+  .cta:active{opacity:.8}
+  .roi{background:var(--surface); border:1px solid rgba(74,222,128,.35); border-radius:16px; padding:15px; margin-top:16px}
+  .roi .rl{font-size:11.5px; font-weight:700; color:#4ade80}
+  .roi .rv{font-size:25px; font-weight:800; margin:4px 0 2px; color:var(--text); font-variant-numeric:tabular-nums}
+  .roi .rd{font-size:11px; color:var(--muted); line-height:1.5}
+  .feature{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); padding:9px 2px; border-bottom:1px solid rgba(148,163,184,.15)}
+  .feature b{color:var(--text)}
+  .plan{background:var(--surface); border-radius:14px; padding:12px 14px; margin-top:10px; font-size:12.5px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; border:1.5px solid transparent}
+  .plan.on{border-color:var(--primary)}
+  .plan .pt{font-weight:700}
+  .plan .pq{color:var(--muted); font-size:11px}
+
+  /* Tabs */
+  .tabs{display:flex; background:var(--surface); border-top:1px solid rgba(148,163,184,.2); padding:8px 4px 14px}
+  .tab{flex:1; text-align:center; font-size:11.5px; color:var(--muted); cursor:pointer; user-select:none; padding-top:2px}
+  .tab .tgi{display:block; font-size:17px; line-height:1.15; margin-bottom:2px}
+  .tab .bar{height:3px; width:26px; margin:5px auto 0; border-radius:99px; background:transparent}
+  .tab.on{color:var(--primary); font-weight:600}
+  .tab.on .tgi{color:var(--secondary)}
+  .tab.on .bar{background:var(--primary)}
+
+  /* Toasts */
+  .toasts{position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:99; display:flex; flex-direction:column; gap:8px; width:min(360px, 92vw)}
+  .toast{display:flex; gap:10px; align-items:flex-start; background:#101a2e; border:1px solid rgba(148,163,184,.3); border-radius:13px; padding:11px 14px; box-shadow:0 12px 34px rgba(0,0,0,.5); animation:tin .3s ease; font-size:12.5px}
+  .toast .ti{font-size:16px}
+  .toast .tt{font-weight:700; color:var(--text)}
+  .toast .ts{color:var(--muted); font-size:11.5px; margin-top:2px; line-height:1.4}
+  .toast.ok{border-color:rgba(74,222,128,.5)}
+  .toast.err{border-color:rgba(248,113,113,.55)}
+  .toast.warn{border-color:rgba(245,158,11,.5)}
+  .toast.hide{animation:tout .3s ease forwards}
+  @keyframes tout{to{opacity:0; transform:translateY(12px)}}
+
+  .caption{max-width:1080px; margin:26px auto 0; text-align:center; font-size:12px; color:var(--muted)}
+  .note{max-width:1080px; margin:14px auto 0; background:rgba(56,189,248,.08); border:1px solid rgba(56,189,248,.25); border-radius:12px; padding:12px 16px; font-size:12.5px; color:var(--muted); line-height:1.6}
+  .note b{color:var(--text)}
+</style>
+</head>
+<body>
+
+<header>
+  <div><img class="brand" src="Logo/ClearNet Logo 1.png" alt="ClearNet"><h1 style="margin-top:6px">Visual preview <span>V1.4</span> <span style="color:#4ade80; font-size:13px">interactive</span></h1></div>
+  <div class="controls">
+    <label class="sect" for="sector">Sector (theme):</label>
+    <select id="sector"></select>
+  </div>
+</header>
+
+<div class="hint">Interactive demo faithful to the React Native screens (V1.4 + UX axes). Try: <b>sign in</b>/<b>create account</b>, <b>＋ New payment</b> (watch the ⏳ → ✅ badge live, type "FAIL..." to see the failure), <b>cycles</b> on home (click → graph), <b>graph nodes</b> (detailed sheet), <b>plan</b> in Subscription, <b>network outage</b> simulation. The theme follows the selected sector.</div>
+
+<div class="stage">
+  <!-- ================= TÉLÉPHONE 1 : APP ================= -->
+  <div class="phone">
+    <div class="phone-screen" id="phone">
+      <div class="statusbar"><span>21:47</span><span style="opacity:0">.</span><span>▮▮▮ 100%</span></div>
+
+      <div class="screen" id="sc-home">
+        <div class="hdr"><h2>Hello</h2><span class="logout" onclick="doLogout()">Log out</span></div>
+        <div class="sectorbadge" id="sectorbadge"><span class="sg">⚓</span><span class="sl">Maritime &amp; Transport</span></div>
+        <div class="balance" id="balanceCard">
+          <div class="lbl">Available balance</div>
+          <div class="amt" id="balanceAmt">12&nbsp;480,50&nbsp;€</div>
+          <div class="last" id="lastTx">Last operation: −250,00 € (12/08)</div>
+        </div>
+        <div class="cycles"><div class="ct">🔄 Cycles detected <span class="nn" id="cyclesCount">2</span></div>
+          <div class="cycle-row" data-cycle="0"><span class="cr">CMR → TransSped → Nova</span><span class="ca">+ 1&nbsp;240 €</span></div>
+          <div class="cycle-row" data-cycle="1"><span class="cr">FreightWiki ⇄ CMR</span><span class="ca">+ 480 €</span></div>
+        </div>
+        <div class="card" data-goto="transactions">
+          <div><div class="t">Transactions</div><div class="s">Full history, creation and live tracking</div></div>
+          <span class="arrow">→</span>
+        </div>
+        <div class="card" data-goto="graph">
+          <div><div class="t">Payment network</div><div class="s">Live graph of your counterparts</div></div>
+          <span class="arrow">→</span>
+        </div>
+        <div class="live" id="liveBanner" style="display:none"><span class="dot"></span> Real-time update completed</div>
+      </div>
+
+      <div class="screen" id="sc-transactions" hidden>
+        <div class="ttl"><h2>Transactions</h2><span class="newbtn" onclick="openNewTx()">＋ New</span></div>
+        <div class="offchip" id="offToggle" onclick="toggleOffline()">📴 Simulate a network outage</div>
+        <div id="syncWrap" style="display:none">
+          <div class="sync" onclick="syncNow()">🔄 <span id="syncN">2</span> payment(s) awaiting synchronization</div>
+          <div class="bar"><i id="syncBar"></i></div>
+          <div class="offline">Network unavailable</div>
+        </div>
+        <div id="txList"></div>
+        <div class="more" onclick="moreTx()">Load more</div>
+      </div>
+
+      <div class="screen" id="sc-graph" hidden>
+        <div class="netstatus"><span class="netdot" id="netdot"></span><span id="netStatus">Connected in real time</span></div>
+        <div class="graphwrap">
+          <svg class="graphsvg" id="gsvg" viewBox="0 0 260 240"></svg>
+          <div class="sheet" id="gsheet"></div>
+        </div>
+        <div class="netcard" id="gmeta"></div>
+      </div>
+
+      <div class="screen" id="sc-billing" hidden>
+        <div class="ttl"><h2>ClearNet Subscription</h2><span class="logout" onclick="openPlans()">Change</span></div>
+        <div class="roi block" id="roiWidget">
+          <div class="rl">💶 Savings achieved (V1.4)</div>
+          <div class="rv" id="roiVal">37,50 €</div>
+          <div class="rd" id="roiSub">Based on 15 successful settlements × 2,50 € in fees avoided</div>
+        </div>
+        <div class="tier">
+          <div class="tr"><span>Plan</span><b id="tierName" class="cur">Pro</b></div>
+          <div class="tr" style="margin-top:10px"><span>Monthly quota</span><b id="quotaTotal">500 operations</b></div>
+          <div class="tbar bar"><i id="quotaBar"></i></div>
+          <div class="q" id="quotaText">72 / 500 operations used this month</div>
+          <div class="tr" style="margin-top:10px"><span>ClearNet commission</span><b id="feeName">1,2 %</b></div>
+        </div>
+        <div class="feature"><span>Unlimited single payments</span><b id="f1">Yes</b></div>
+        <div class="feature"><span>Real-time settlement</span><b id="f2">Yes</b></div>
+        <div class="feature"><span>History &amp; export</span><b id="f3">Yes</b></div>
+        <div class="feature"><span>Dedicated support</span><b id="f4">Yes</b></div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <div class="tab on" data-tab="home"><span class="tgi">⌂</span>Home<div class="bar"></div></div>
+        <div class="tab" data-tab="transactions"><span class="tgi">≡</span>Transactions<div class="bar"></div></div>
+        <div class="tab" data-tab="graph"><span class="tgi">⬢</span>Network<div class="bar"></div></div>
+        <div class="tab" data-tab="billing"><span class="tgi">▤</span>Subscription<div class="bar"></div></div>
+      </div>
+
+      <!-- Modal nouveau paiement -->
+      <div class="modal" id="newTxModal">
+        <div class="modal-card">
+          <div class="m-title" id="ntTitle">New payment</div>
+          <div class="field">Recipient <input id="ntTo" placeholder="email@company.com" value="facturation@novenergy.de"></div>
+          <div class="field">Amount (EUR) <input id="ntAmt" type="number" placeholder="250.00" value="250"></div>
+          <div class="field">Note <input id="ntNote" placeholder="Invoice 2026-…" value="Invoice 2026-452"></div>
+          <div class="m-row" style="margin-top:14px">
+            <div class="m-btn cancel" onclick="closeNewTx()">Cancel</div>
+            <div class="m-btn ok" onclick="submitTx()">Send</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal plans -->
+      <div class="modal" id="plansModal">
+        <div class="modal-card">
+          <div class="m-title">Choose a plan</div>
+          <div class="plan" data-plan="Free"><span><span class="pt">Free</span><br><span class="pq">15 operations / month</span></span><span class="pq">0 €</span></div>
+          <div class="plan" data-plan="Essentiel"><span><span class="pt">Essentiel</span><br><span class="pq">50 operations / month</span></span><span class="pq">€99/month</span></div>
+          <div class="plan on" data-plan="Pro"><span><span class="pt">Pro</span><br><span class="pq">500 operations / month</span></span><span class="pq">€499/month</span></div>
+          <div class="plan" data-plan="Enterprise"><span><span class="pt">Enterprise</span><br><span class="pq">Unlimited operations</span></span><span class="pq">€1,999/month</span></div>
+          <div class="m-row" style="margin-top:16px">
+            <div class="m-btn cancel" onclick="closePlans()">Close</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TÉLÉPHONE 2 : LOGIN ================= -->
+  <div class="phone">
+    <div class="phone-screen">
+      <div class="statusbar"><span>21:47</span><span style="opacity:0">.</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div class="auth-body" id="loginBody">
+          <img class="logoimg" src="Logo/ClearNet Logo 1.png" alt="ClearNet">
+          <div class="sub">Real-time intercompany settlement network</div>
+          <div class="field">Email <input id="liMail" placeholder="contact@cmr-maritime.fr" value="contact@cmr-maritime.fr"></div>
+          <div class="field">Password <input id="liPass" type="password" placeholder="••••••••" value="clearnet"></div>
+          <div class="btn" id="liBtn" onclick="doLogin()">Sign in</div>
+          <div class="link" onclick="showRegister()">Create account</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TÉLÉPHONE 3 : REGISTER ================= -->
+  <div class="phone">
+    <div class="phone-screen">
+      <div class="statusbar"><span>21:47</span><span style="opacity:0">.</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div class="auth-body" id="regBody">
+          <img class="logoimg" src="Logo/ClearNet Logo 1.png" alt="ClearNet">
+          <div class="sub">Create your account — the app theme adapts to your sector</div>
+          <div class="field">Company <input id="rgCo" value="Nova Energy GmbH"></div>
+          <div class="field">Email <input id="rgMail" value="direction@novenergy.de"></div>
+          <div class="field">Password <input id="rgPass" type="password" value="demo2026"></div>
+          <div class="chips" id="chips"></div>
+          <div class="btn" id="rgBtn" onclick="doRegister()">Create my account</div>
+          <div class="link" onclick="showLogin()">← Back to sign in</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div class="caption">Interactive demo built from the real screens (src/screens, src/constants/industries.ts) — including the V1.4 UX axes proposed in UX_IMPROVEMENTS_V1.4.md and the V1.5 pricing grid (Free / Essentiel / Pro / Enterprise — quotas, commissions, 402 beyond 15 tx for Free).</div>
+<div class="note"><b>Android build:</b> <span style="color:#4ade80">✅ BUILD SUCCESSFUL</span> (17/08 05:07, 546 tasks, 1h 35) — APK delivered in <code>clearnet-mobile\clearnet-v1.4.apk</code> (62 MB). Issues resolved: JDK 17 + Gradle 8.0.1, Aliyun mirror (plugins), <code>rootProject.ext</code> SDK, <code>components.release</code> guards, <code>archiveClassifier</code>, CMake 3.22.1, Build Tools 30.0.3, legacy expo-splash-screen classes/res recreated.</div>
+
+<script>
+/* ============================ DONNÉES ============================ */
+const SECTORS = [
+  ["SupplyChain","Supply Chain","⇄","#38bdf8","#0ea5e9","#f59e0b","#0b1220","#1e293b","#e2e8f0","#94a3b8"],
+  ["RealEstate","Immobilier","⌂","#f97316","#ea580c","#fde047","#160f0b","#2b211b","#f5ede6","#b8a89c"],
+  ["Energy","Énergie","⚡","#fbbf24","#f59e0b","#34d399","#141006","#2a2410","#f7efd9","#b8ac84"],
+  ["Banking","Banque & Finance","¤","#34d399","#10b981","#f87171","#04140d","#123026","#dff7ec","#8fb8a8"],
+  ["Metallurgy","Métallurgie","◆","#94a3b8","#64748b","#fb923c","#101319","#23272f","#e3e7ec","#9aa2ad"],
+  ["Healthcare","Santé","✞","#f472b6","#ec4899","#60a5fa","#160b12","#2b1b24","#f8e7f0","#b99aab"],
+  ["Fashion","Mode","✦","#c084fc","#a855f7","#fcd34d","#120c1a","#261b33","#f0e8fa","#b0a2c2"],
+  ["IndustrialTextile","Textile industriel","❀","#2dd4bf","#14b8a6","#f59e0b","#071412","#122723","#d9f5f0","#8fb3ac"],
+  ["Defense","Armement & Défense","▮","#4ade80","#22c55e","#fbbf24","#07130b","#122618","#ddf4e4","#8faf99"],
+  ["Technology","Technologie","◈","#60a5fa","#3b82f6","#22d3ee","#0a1220","#16233a","#e2ebfa","#93a5c4"],
+  ["InternationalTrade","Commerce international","⚓","#22d3ee","#06b6d4","#fbbf24","#06141a","#0f2831","#8bb0ba"],
+  ["Aviation","Aviation","✈","#7dd3fc","#38bdf8","#f97316","#081220","#12263c","#e0edfa","#93a9bf"],
+  ["Maritime","Maritime & Transport","⚓","#38bdf8","#0284c7","#fde047","#061426","#0e2a45","#d8ecf7","#8aa8c4"],
+  ["Spatial","Aérospatial & Spatial","★","#a78bfa","#7c3aed","#f0abfc","#0e0b1c","#1f1a36","#eae4fa","#a49bc4"],
+  ["Biotech","Biotechnologie & Pharma","☣","#4ade80","#16a34a","#ffffff","#07130a","#10241a","#dcf5e2","#8fb89c"]
+];
+const flag = (c) => (c && c.length === 2) ? String.fromCodePoint(127397 + c.charCodeAt(0), 127397 + c.charCodeAt(1)) : null;
+
+let state = {
+  authed: false,
+  email: "contact@cmr-maritime.fr",
+  industry: "Maritime",
+  balance: 12480.50,
+  quota: { used: 72, total: 500, tier: "Pro" },
+  fee: "1,2 %",
+  offline: false,
+  pendingQueue: [],
+  highlightCycle: null,
+  txns: [
+    { id:'t1', dir:'in',  amt:1800, time:'09:41', date:'Aug 15', label:'CMR – Compagnie Maritime du Rhône', note:'Bunkering Rotterdam → Valence',   country:'NL', status:'SUCCESS' },
+    { id:'t2', dir:'out', amt:250,  time:'08:15', date:'Aug 15', label:'FreightWiki & Co',                 note:'Account-to-account transfer',     country:'CH', status:'SUCCESS' },
+    { id:'t3', dir:'out', amt:3400, time:'17:02', date:'Aug 12', label:'Nova Energy',                      note:'Fuel — Fos-sur-Mer depot',        country:'DE', status:'SUCCESS' },
+    { id:'t4', dir:'in',  amt:920,  time:'11:26', date:'Aug 12', label:'TransSped Logistics',              note:'AVL refund',                      country:'IT', status:'PENDING' },
+    { id:'t5', dir:'out', amt:600,  time:'09:02', date:'Aug 11', label:'Meridian Shipping',                note:'Consolidated freight',            country:'GR', status:'SUCCESS' },
+    { id:'t6', dir:'in',  amt:2500, time:'14:33', date:'Aug 8',  label:'Nova Energy',                      note:'Counter-cycle B',                 country:'DE', status:'SUCCESS' },
+    { id:'t7', dir:'out', amt:120,  time:'10:20', date:'Aug 6',  label:'TransSped Logistics',              note:'AVL quay 12',                     country:'IT', status:'FAILED' },
+  ],
+  nodes: {
+    "CMR – Compagnie Maritime du Rhône": { c:'FR', vol: 8620,  n: 6 },
+    "TransSped Logistics":               { c:'IT', vol: 2040,  n: 3 },
+    "Nova Energy":                       { c:'DE', vol: 6650,  n: 4 },
+    "FreightWiki & Co":                  { c:'CH', vol: 1280,  n: 2 },
+    "Meridian Shipping":                 { c:'GR', vol: 600,   n: 1 },
+  },
+  edges: [
+    ["CMR – Compagnie Maritime du Rhône","TransSped Logistics"],
+    ["CMR – Compagnie Maritime du Rhône","Nova Energy"],
+    ["CMR – Compagnie Maritime du Rhône","FreightWiki & Co"],
+    ["CMR – Compagnie Maritime du Rhône","Meridian Shipping"],
+    ["TransSped Logistics","CMR – Compagnie Maritime du Rhône"],
+    ["Nova Energy","CMR – Compagnie Maritime du Rhône"],
+    ["FreightWiki & Co","CMR – Compagnie Maritime du Rhône"],
+  ],
+  cycles: [
+    { nodes: ["CMR – Compagnie Maritime du Rhône","TransSped Logistics","Nova Energy"], label:"CMR → TransSped → Nova", amount: 1240 },
+    { nodes: ["FreightWiki & Co","CMR – Compagnie Maritime du Rhône"], label:"FreightWiki ⇄ CMR", amount: 480 },
+  ],
+};
+let txSeq = 100;
+const FEE = 2.50;
+/* pays par domaine de contrepartie pour l'axe 2 */
+const DOMAIN_COUNTRY = { novenergy: 'DE', transsped: 'IT', freightwiki: 'CH', meridian: 'GR', cmr: 'FR' };
+
+/* ============================ THÈME ============================ */
+const sel = document.getElementById("sector");
+const badge = document.getElementById("sectorbadge");
+SECTORS.forEach(([code,label,g]) => {
+  const o = document.createElement("option"); o.value = code; o.textContent = g + "  " + label; sel.appendChild(o);
+});
+function apply(code){
+  const s = SECTORS.find(x=>x[0]===code) || SECTORS[12];
+  const r = document.documentElement.style;
+  r.setProperty("--primary",s[3]); r.setProperty("--secondary",s[4]);
+  r.setProperty("--accent",s[5]);  r.setProperty("--bg",s[6]);
+  r.setProperty("--surface",s[7]); r.setProperty("--text",s[8]);
+  r.setProperty("--muted",s[9]);
+  badge.querySelector(".sg").textContent = s[2];
+  badge.querySelector(".sl").textContent = s[1];
+  document.querySelectorAll("#chips .chip").forEach(c=>c.classList.toggle("on",c.dataset.code===code));
+}
+sel.onchange = () => apply(sel.value);
+const chips = document.getElementById("chips");
+SECTORS.forEach(([code,label,g]) => {
+  const c = document.createElement("span");
+  c.className = "chip"; c.dataset.code = code;
+  c.innerHTML = `<span class="g">${g}</span>${label}`;
+  c.onclick = () => apply(code);
+  chips.appendChild(c);
+});
+
+/* ============================ TOASTS ============================ */
+function toast(kind, title, sub, icon){
+  const box = document.getElementById("toasts");
+  while (box.children.length >= 3) box.removeChild(box.firstChild);
+  const t = document.createElement("div");
+  t.className = "toast " + kind;
+  t.innerHTML = `<span class="ti">${icon||'ℹ️'}</span><div><div class="tt">${title}</div><div class="ts">${sub||''}</div></div>`;
+  box.appendChild(t);
+  setTimeout(() => { t.classList.add("hide"); setTimeout(() => t.remove(), 320); }, 4200);
+}
+
+/* ============================ RENDU TX ============================ */
+const fmtEUR = (v) => v.toLocaleString('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:2 });
+const bm = { PENDING:{l:'⏳ Pending',c:'#f59e0b'}, PENDING_MULTISIG:{l:'🔐 Multisig 2/3',c:'#fbbf24'}, SUCCESS:{l:'✅ Success',c:'#4ade80'}, FAILED:{l:'❌ Failed',c:'#f87171'} };
+function statusBadge(st){
+  const m = bm[st]; if (!m) return '';
+  return `<span class="badge" style="color:${m.c}">${m.l}</span>`;
+}
+function renderTxList(){
+  const el = document.getElementById("txList");
+  const list = state.offline
+    ? state.txns.filter(t=>!state.pendingQueue.includes(t.id))
+    : state.txns;
+  const days = {};
+  list.forEach(t => { (days[t.date] = days[t.date] || []).push(t); });
+  el.innerHTML = Object.keys(days).map(d =>
+    `<div class="day">${d}</div>` + days[d].map(tx => `
+      <div class="tx" id="tx-${tx.id}">
+        <div class="row"><span class="amt ${tx.dir==='in'?'in':''}">${tx.dir==='in'?'+':'−'} ${fmtEUR(tx.amt)}</span><span class="tm">${tx.time} · ${tx.dir==='in'?'received':'sent'}</span></div>
+        <div class="dt">${flag(tx.country)||''} <span style="margin-left:4px">${tx.label}</span>${tx.dir==='in'?'':` · ${tx.id.startsWith('t')?'':'New'}`}</div>
+        <div class="nt">${tx.note}</div>
+        ${statusBadge(tx.status)}
+      </div>`).join('')
+  ).join('');
+  renderSync();
+}
+function renderSync(){
+  document.getElementById("syncWrap").style.display = state.offline && state.pendingQueue.length ? 'block' : 'none';
+  document.getElementById("syncN").textContent = state.pendingQueue.length;
+}
+function updateTx(id, patch){
+  const tx = state.txns.find(t=>t.id===id); if (!tx) return;
+  Object.assign(tx, patch);
+  renderTxList();
+}
+
+/* ============================ BALANCE / QUOTA / ROI ============================ */
+function refreshHome(){
+  const el = document.getElementById("balanceAmt");
+  el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+  el.textContent = fmtEUR(state.balance);
+  const last = state.txns.find(t=>t.status==='SUCCESS' && t.dir==='out') || state.txns[0];
+  document.getElementById("lastTx").textContent = `Last operation: ${fmtEUR(last.amt)} (${last.date}) ${flag(last.country)||''}`;
+}
+function refreshQuota(){
+  const q = state.quota;
+  const unlimited = !q.total;
+  const pct = unlimited ? 0 : Math.round(q.used / q.total * 100);
+  document.getElementById("quotaBar").style.width = pct + '%';
+  document.getElementById("quotaBar").className = pct >= 85 ? 'warn' : '';
+  const qtxt = document.getElementById("quotaText");
+  qtxt.textContent = unlimited
+    ? 'Unlimited operations'
+    : `${q.used} / ${q.total} operations used this month`;
+  qtxt.className = pct >= 85 ? 'q warn' : 'q';
+}
+function refreshRoi(){
+  const n = state.txns.filter(t=>t.status==='SUCCESS').length;
+  const total = n * FEE;
+  document.getElementById("roiVal").textContent = fmtEUR(total);
+  document.getElementById("roiSub").textContent = `Based on ${n} successful settlements × ${fmtEUR(FEE)} in fees avoided`;
+}
+
+/* ============================ SIMULATION ON-CHAIN ============================ */
+function settle(tx){
+  setTimeout(() => {
+    if (tx.fail) {
+      updateTx(tx.id, { status:'FAILED' });
+      toast('err', 'Settlement failed', `${tx.label} · on-chain FAILED (insolvency error)`, '❌');
+    } else {
+      updateTx(tx.id, { status:'SUCCESS' });
+      state.quota.used += 1; refreshQuota(); refreshRoi();
+      toast('ok', 'Settlement confirmed on-chain', `${tx.label} · +${tx.amt.toFixed(2)} € · hash 0x…a91f`, '✅');
+    }
+    refreshHome();
+  }, tx.fail ? 2500 : 4000);
+}
+
+/* ============================ NOUVEAU PAIEMENT ============================ */
+const modal = document.getElementById("newTxModal");
+function openNewTx(){ modal.classList.add("open"); setTimeout(()=>document.getElementById("ntTo").focus(), 200); }
+function closeNewTx(){ modal.classList.remove("open"); }
+function submitTx(){
+  const to = document.getElementById("ntTo").value.trim();
+  const amt = parseFloat(document.getElementById("ntAmt").value);
+  const note = document.getElementById("ntNote").value.trim();
+  if (!to.includes('@')) return toast('warn', 'Invalid recipient', 'Enter a company email', '⚠️');
+  if (!(amt > 0)) return toast('warn', 'Invalid amount', 'Amount must be > 0', '⚠️');
+  const dom = to.split('@')[1]?.split('.')[0]?.toLowerCase();
+  const country = DOMAIN_COUNTRY[dom] || 'FR';
+  const lbl = to.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c=>c.toUpperCase()) + (DOMAIN_COUNTRY[dom] ? ` (${dom} GmbH)` : '');
+  const tx = { id:'t'+(++txSeq), dir:'out', amt, time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), date:'today', label:lbl, note:note||'No note', country, status:'PENDING', fail:/fail/i.test(to) };
+  state.txns.unshift(tx);
+  closeNewTx();
+  renderTxList();
+  toast('warn', 'Payment created', `${lbl} · ${fmtEUR(amt)} — pending settlement`, '⏳');
+  if (state.offline) { state.pendingQueue.push(tx.id); renderSync(); }
+  else settle(tx);
+}
+
+/* ============================ OFFLINE / SYNCHRO ============================ */
+function toggleOffline(){
+  state.offline = !state.offline;
+  if (state.offline) {
+    document.getElementById("netdot").classList.add("off");
+    document.getElementById("netStatus").textContent = 'Offline (local queue)';
+    renderTxList();
+  } else {
+    document.getElementById("offToggle").textContent = '📴 Simulate a network outage';
+    document.getElementById("netdot").classList.remove("off");
+    document.getElementById("netStatus").textContent = 'Connected in real time';
+    if (state.pendingQueue.length) syncNow(); else renderSync();
+  }
+}
+function syncNow(){
+  const q = state.pendingQueue.slice();
+  if (!q.length) { renderSync(); return; }
+  let n = 0;
+  const iv = setInterval(() => {
+    n++;
+    document.getElementById("syncBar").style.width = Math.round(n/q.length*100) + '%';
+    document.getElementById("syncN").textContent = q.length - n;
+    if (n >= q.length) {
+      clearInterval(iv);
+      state.pendingQueue = [];
+      q.forEach(id => { const tx = state.txns.find(t=>t.id===id); if (tx) settle(tx); });
+      renderSync();
+      toast('ok', 'Synchronization complete', `${q.length} payment(s) sent to the network`, '🔄');
+      setTimeout(()=>{ document.getElementById("offToggle").textContent = '📴 Simulate a network outage'; }, 100);
+    }
+  }, 700);
+}
+
+/* ============================ GRAPHE ============================ */
+const POS = {
+  "CMR – Compagnie Maritime du Rhône": [130,120],
+  "TransSped Logistics": [40,52],
+  "Nova Energy": [214,64],
+  "FreightWiki & Co": [46,196],
+  "Meridian Shipping": [224,184],
+};
+function renderGraph(){
+  const svg = document.getElementById("gsvg");
+  const nids = Object.keys(state.nodes);
+  const hl = state.highlightCycle ? state.cycles[state.highlightCycle].nodes : [];
+  let s = '';
+  state.edges.forEach(e => {
+    const inC = hl.includes(e[0]) && hl.includes(e[1]);
+    s += `<line class="g-edge ${inC?'hl':''}" x1="${POS[e[0]][0]}" y1="${POS[e[0]][1]}" x2="${POS[e[1]][0]}" y2="${POS[e[1]][1]}" stroke-width="1.4" opacity=".6"/>`;
+  });
+  nids.forEach(id => {
+    const [x,y] = POS[id];
+    const self = id === "CMR – Compagnie Maritime du Rhône";
+    const inC = hl.includes(id);
+    s += `<g class="g-node" data-node="${id}">`
+      + `<circle cx="${x}" cy="${y}" r="${self?22:inC?12:9}" fill="${self?'var(--primary)':inC?'var(--accent)':'var(--surface)'}" stroke="${inC?'var(--accent)':self?'var(--primary)':'var(--secondary)'}" stroke-width="${inC?2.6:1.6}"/>`
+      + `<text x="${x}" y="${y + (self?4:3)}" text-anchor="middle" font-size="${self?12:9}" font-weight="700" fill="${self?'#0b1220':inC?'#0b1220':'var(--text)'}">${self?'YOU':id.split(' ')[0]}</text>`
+      + `</g>`;
+  });
+  svg.innerHTML = s;
+  svg.querySelectorAll('.g-node').forEach(g => {
+    g.addEventListener('click', () => openSheet(g.dataset.node));
+  });
+  document.getElementById("gmeta").innerHTML = hl.length
+    ? `<b>Highlighted cycle:</b> ${hl.map(h=>h.split(' ')[0]).join(' → ')} <span style="color:var(--accent)">⇆ potential benefit ${fmtEUR(state.cycles[state.highlightCycle].amount)}</span>`
+    : `<b>Extended payments graph:</b> ${nids.length} nodes, ${state.edges.length} cascade flows, live update via WebSocket. Click a node for the counterpart sheet.`;
+}
+function openSheet(id){
+  const m = state.nodes[id];
+  const sheet = document.getElementById("gsheet");
+  sheet.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start">
+      <div class="nm">${flag(m.c)||''} ${id}</div>
+      <span style="color:var(--muted); cursor:pointer; font-size:14px" onclick="closeSheet()">✕</span>
+    </div>
+    <div class="st"><span>Total volume (90 d)</span><b>${fmtEUR(m.vol)}</b></div>
+    <div class="st"><span>Transactions</span><b>${m.n}</b></div>
+    <div class="st"><span>Country</span><b>${m.c}</b></div>
+    <div class="st"><span>Network status</span><b style="color:var(--accent)">● Active</b></div>`;
+  sheet.classList.add("open");
+}
+function closeSheet(){ document.getElementById("gsheet").classList.remove("open"); }
+document.addEventListener('click', (e) => { if (!e.target.closest('.sheet') && !e.target.closest('.g-node')) closeSheet(); });
+
+/* ============================ NAVIGATION & FLOWS ============================ */
+function goto(tab){
+  const t = document.querySelector(`#tabs .tab[data-tab="${tab}"]`);
+  document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on");
+  ["home","transactions","graph","billing"].forEach(k=>{
+    document.getElementById("sc-"+k).hidden = (k !== tab);
+  });
+  if (tab === 'graph') renderGraph();
+}
+document.getElementById("tabs").addEventListener("click", e => {
+  const t = e.target.closest(".tab"); if (t) goto(t.dataset.tab);
+});
+document.querySelectorAll(".card[data-goto]").forEach(c => c.addEventListener('click', () => goto(c.dataset.goto)));
+document.querySelectorAll('.cycle-row').forEach(r => r.addEventListener('click', () => {
+  state.highlightCycle = parseInt(r.dataset.cycle, 10);
+  goto('graph');
+  toast('ok', 'Cycle highlighted', state.cycles[state.highlightCycle].label + ' · yellow outline', '🔄');
+}));
+
+const T1 = { login: () => loginBody.innerHTML = loginHtml(), register: () => loginBody.innerHTML = reg(1) };
+/* login / register UI */
+function doLogin(){
+  const b = document.getElementById("liBtn");
+  b.innerHTML = '<span class="spinner"></span>';
+  setTimeout(() => {
+    state.authed = true;
+    state.email = document.getElementById("liMail").value.trim() || "contact@cmr-maritime.fr";
+    b.textContent = 'Sign in';
+    const dom = state.email.split('@')[1]?.split('.')[0]?.toLowerCase();
+    const ind = { novenergy:'Energy', transsped:'SupplyChain', cmr:'Maritime', freightwiki:'Aviation' }[dom];
+    if (ind) apply(ind);
+    toast('ok', 'Signed in — ' + state.email.split('@')[0], 'Balance synced, WebSocket active', '🔓');
+    document.getElementById("loginBody").innerHTML = `
+      <div style="padding-top:50px">
+        <div style="font-size:34px">✓</div>
+        <div class="who" style="font-size:16px; font-weight:700; margin:10px 0 4px">Active session</div>
+        <div class="em">${state.email}</div>
+        <div class="btn" style="margin-top:26px" onclick="showLogin()">Log out</div>
+      </div>`;
+  }, 700);
+}
+function doRegister(){
+  const co = document.getElementById("rgCo").value.trim();
+  const ml = document.getElementById("rgMail").value.trim();
+  const pw = document.getElementById("rgPass").value;
+  if (co.length < 2) return toast('warn', 'Company required', 'Missing company name', '⚠️');
+  if (!ml.includes('@')) return toast('warn', 'Invalid email', 'Expected format: name@domain', '⚠️');
+  if (pw.length < 6) return toast('warn', 'Password too short', '6 characters minimum', '⚠️');
+  const b = document.getElementById("rgBtn");
+  b.innerHTML = '<span class="spinner"></span>';
+  setTimeout(() => {
+    b.textContent = 'Create my account';
+    const dom = ml.split('@')[1]?.split('.')[0]?.toLowerCase();
+    const ind = { novenergy:'Energy', transsped:'SupplyChain', cmr:'Maritime', freightwiki:'Aviation' }[dom];
+    if (ind) apply(ind);
+    toast('ok', 'Account created — welcome', co + ' · theme ' + SECTORS.find(s=>s[0]===ind)?.[1] || '', '🎉');
+    document.getElementById("liMail").value = ml;
+    document.getElementById("loginBody").innerHTML = `
+      <div style="padding-top:50px">
+        <div style="font-size:34px">✓</div>
+        <div class="who" style="font-size:16px; font-weight:700; margin:10px 0 4px">Account created</div>
+        <div class="em">${co} · ready to settle</div>
+        <div class="btn" style="margin-top:26px" onclick="showLogin()">Sign in</div>
+      </div>`;
+  }, 900);
+}
+function showRegister(){
+  const s = SECTORS.find(x=>x[0]===state.industry) || SECTORS[0];
+  document.getElementById("loginBody").innerHTML = `
+    <div style="padding-top:50px">
+      <div style="font-size:34px">＋</div>
+      <div class="who" style="font-size:16px; font-weight:700; margin:10px 0 4px">Account creation</div>
+      <div class="em">Go to the 3rd screen (on the right) — pick your sector, the theme follows!</div>
+      <div class="btn ghost" style="margin-top:26px" onclick="showLogin()">← Cancel</div>
+    </div>`;
+}
+function showLogin(){
+  document.getElementById("loginBody").innerHTML = `
+    <img class="logoimg" src="Logo/ClearNet Logo 1.png" alt="ClearNet">
+    <div class="sub">Real-time intercompany settlement network</div>
+    <div class="field">Email <input id="liMail" value="contact@cmr-maritime.fr"></div>
+    <div class="field">Password <input id="liPass" type="password" value="clearnet"></div>
+    <div class="btn" onclick="doLogin()">Sign in</div>
+    <div class="link" onclick="showRegister()">Create account</div>`;
+}
+function doLogout(){
+  state.authed = false;
+  toast('err', 'Logged out', 'Session closed, data encrypted locally', '🔒');
+  showLogin();
+}
+
+/* ============================ BILLING (V1.5 — 4 niveaux) ============================ */
+const PLANS = {
+  Free:      { t: 15,   fee: '2,0 %' },
+  Essentiel: { t: 50,   fee: '1,5 %' },
+  Pro:       { t: 500,  fee: '1,2 %' },
+  Enterprise:{ t: null, fee: '0,9 %' },
+};
+document.querySelectorAll('.plan').forEach(p => p.addEventListener('click', () => {
+  document.querySelectorAll('.plan').forEach(x=>x.classList.remove('on'));
+  p.classList.add('on');
+  const plan = p.dataset.plan;
+  const cfg = PLANS[plan];
+  state.quota.tier = plan;
+  state.quota.total = cfg.t;
+  state.fee = cfg.fee;
+  document.getElementById("tierName").textContent = plan;
+  document.getElementById("quotaTotal").textContent = cfg.t ? `${cfg.t} operations` : 'Unlimited operations';
+  document.getElementById("feeName").textContent = cfg.fee;
+  refreshQuota();
+}));
+function openPlans(){ document.getElementById("plansModal").classList.add("open"); }
+function closePlans(){ document.getElementById("plansModal").classList.remove("open"); }
+
+/* ============================ DIVERS ============================ */
+function moreTx(){ toast('info', 'Full history', 'All accounting settlements can be viewed', '📚'); }
+document.querySelectorAll('.field input').forEach(i => i.addEventListener('focus', e => e.target.parentElement.classList.add('focus')));
+document.querySelectorAll('.field input').forEach(i => i.addEventListener('blur',  e => e.target.parentElement.classList.remove('focus')));
+
+/* ============================ INIT ============================ */
+apply("Maritime");
+renderTxList();
+refreshHome();
+refreshQuota();
+refreshRoi();
+renderGraph();
+goto('home');
+</script>
+</body>
+</html>

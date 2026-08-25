@@ -1,0 +1,6 @@
+services:
+  backend:
+    image: infrastructure-backend:latest
+    volumes:
+      - ../clearnet-backend/dist:/app/dist:ro
+      - ../clearnet-backend/node_modules:/app/node_modules:ro

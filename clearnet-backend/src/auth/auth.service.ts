@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -47,6 +48,14 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants invalides');
     }
     return this.buildAuthResult(user);
+  }
+
+  /** Suppression de compte (RGPD / Play Store) : anonymise le compte, irréversible. */
+  async deleteAccount(userId: string): Promise<void> {
+    const deleted = await this.usersService.deleteAccount(userId);
+    if (!deleted) {
+      throw new NotFoundException('Compte introuvable');
+    }
   }
 
   private buildAuthResult(user: UserRecord): AuthResult {

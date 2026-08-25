@@ -1,0 +1,3 @@
+# Secrets locaux / environnements — ne jamais committer
+.env
+.env.prod

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -81,6 +82,31 @@ export default function HomeScreen({ token, onLogout, onOpenTransactions }: Prop
       maximumFractionDigits: 2,
     }).format(value ?? 0);
 
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'Cette action est irréversible : vos données personnelles seront effacées et vous perdrez l’accès à votre compte.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api('/auth/account', {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              onLogout();
+            } catch {
+              Alert.alert('Erreur', 'Impossible de supprimer le compte pour le moment.');
+            }
+          },
+        },
+      ],
+    );
+  }, [token, onLogout]);
+
   return (
     <ScrollView
       testID="home-screen"
@@ -137,6 +163,12 @@ export default function HomeScreen({ token, onLogout, onOpenTransactions }: Prop
           )}
         </>
       )}
+
+      <View style={styles.dangerZone}>
+        <Pressable testID="delete-account" onPress={handleDeleteAccount}>
+          <Text style={styles.deleteAccount}>Supprimer mon compte</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -181,4 +213,6 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
   liveText: { fontSize: 12 },
+  dangerZone: { marginHorizontal: 20, marginTop: 24, marginBottom: 40 },
+  deleteAccount: { color: '#ef4444', fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });

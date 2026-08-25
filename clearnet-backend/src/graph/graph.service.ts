@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Driver } from 'neo4j-driver';
+import { Driver, int } from 'neo4j-driver';
 import { NEO4J_DRIVER } from '../neo4j/neo4j.module';
 import { OracleService } from '../oracles/oracle.service';
 
@@ -66,24 +66,24 @@ export class GraphService {
   ): Promise<Array<{ email: string; name: string; owedTo: number; owedBy: number }>> {
     const session = this.driver.session();
     try {
-      const [sent, received] = await Promise.all([
-        session.run(
-          `MATCH (me:User {email: $email})-[:SENT]->(t:Transaction)<-[:RECEIVED]-(other:User)
-           WHERE other.email <> $excludeEmail
-           WITH other, SUM(t.amount) AS owedToMe
-           RETURN other.email AS email, other.name AS name, owedToMe
-           ORDER BY owedToMe DESC LIMIT $limit`,
-          { email, excludeEmail, limit: limit + SECONDARY_LIMIT },
-        ),
-        session.run(
-          `MATCH (me:User {email: $email})-[:RECEIVED]->(t:Transaction)<-[:SENT]-(other:User)
-           WHERE other.email <> $excludeEmail
-           WITH other, SUM(t.amount) AS owedByMe
-           RETURN other.email AS email, other.name AS name, owedByMe
-           ORDER BY owedByMe DESC LIMIT $limit`,
-          { email, excludeEmail, limit: limit + SECONDARY_LIMIT },
-        ),
-      ]);
+      // Requêtes SÉQUENTIELLES : le driver Neo4j interdit les session.run()
+      // concurrents sur la même session (transactions implicites imbriquées).
+      const sent = await session.run(
+        `MATCH (me:User {email: $email})-[:SENT]->(t:Transaction)<-[:RECEIVED]-(other:User)
+         WHERE other.email <> $excludeEmail
+         WITH other, SUM(t.amount) AS owedToMe
+         RETURN other.email AS email, other.name AS name, owedToMe
+         ORDER BY owedToMe DESC LIMIT $limit`,
+        { email, excludeEmail, limit: int(limit + SECONDARY_LIMIT) },
+      );
+      const received = await session.run(
+        `MATCH (me:User {email: $email})-[:RECEIVED]->(t:Transaction)<-[:SENT]-(other:User)
+         WHERE other.email <> $excludeEmail
+         WITH other, SUM(t.amount) AS owedByMe
+         RETURN other.email AS email, other.name AS name, owedByMe
+         ORDER BY owedByMe DESC LIMIT $limit`,
+        { email, excludeEmail, limit: int(limit + SECONDARY_LIMIT) },
+      );
       const map = new Map<string, { email: string; name: string; owedTo: number; owedBy: number }>();
       for (const record of sent.records) {
         const email_ = record.get('email') as string;

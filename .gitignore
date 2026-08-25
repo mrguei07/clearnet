@@ -12,3 +12,7 @@ Thumbs.db
 keystore-password.txt
 splash-check.png
 clearnet-mobile/.expo/
+
+# Dossier Android généré par expo prebuild (régénérable)
+clearnet-mobile/android/
+*.idsig

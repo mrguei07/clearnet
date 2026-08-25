@@ -188,9 +188,11 @@
       <li><b>Extension secteurs</b> — Maritime / Spatial / Biotech</li>
       <li><b>Phase 2 (durcissement)</b> — ZK, ITAR/OFAC, oracles (detail des flags)</li>
       <li><b>Déploiement Sepolia</b> — pont on-chain sur testnet</li>
+      <li><b>Facturation &amp; Pricing (V1.4 → V1.5)</b> — Stripe, 4 niveaux, quota 402</li>
       <li><b>Résultats de validation</b> — exécutions réelles documentées</li>
       <li><b>Points d'attention &amp; limites</b></li>
       <li><b>Prochaines étapes recommandées</b></li>
+      <li><b>V1.5 — planification livrée</b> (i18n · FX temps réel · ZK batch · sync)</li>
       <li><b>Instructions d'exécution</b></li>
     </ol>
   </section>
@@ -567,9 +569,35 @@
     </div>
   </section>
 
-  <!-- ============ 12. VALIDATION ============ -->
+  <!-- ============ 12. FACTURATION & PRICING (V1.4 → V1.5) ============ -->
   <section>
-    <h2><span class="num">12</span> Résultats de validation</h2>
+    <h2><span class="num">12</span> Facturation &amp; Pricing (V1.4 → V1.5)</h2>
+    <p><b>V1.4</b> a posé la base Stripe (checkout hébergé, webhook signé + IP allowlist,
+    quotas freemium, alerte Slack 80 %) ; <b>V1.5 Pricing</b> remplace le modèle
+    « Pro unique » par une <b>grille 4 niveaux</b> (implémentée et testée —
+    30/30 tests, build ✅) :</p>
+    <table>
+      <tr><th>Niveau</th><th>Opérations / mois</th><th>Commission</th><th>Prix mensuel</th><th>Stripe Price ID</th></tr>
+      <tr><td><b>Free</b></td><td>15 (limité)</td><td>2,0 %</td><td>0 €</td><td>— (pas de paiement)</td></tr>
+      <tr><td><b>Essentiel</b></td><td>50</td><td>1,5 %</td><td>99 €</td><td class="mono">price_essential_xxx</td></tr>
+      <tr><td><b>Pro</b></td><td>500</td><td>1,2 %</td><td>499 €</td><td class="mono">price_pro_xxx</td></tr>
+      <tr><td><b>Enterprise</b></td><td>Illimité</td><td>0,9 %</td><td>1 999 €</td><td class="mono">price_enterprise_xxx</td></tr>
+    </table>
+    <p><b>Règle d'or</b> : au-delà de 15 transactions/mois (mois civil UTC), l'API
+    renvoie <code>402 Payment Required</code> (<code>BILLING_QUOTA_EXCEEDED</code>)
+    avec invitation à passer à l'offre Essentiel. Essentiel (50) et Pro (500) sont
+    également plafonnés ; Enterprise est illimité.</p>
+    <ul>
+      <li><b>Grille centralisée</b> : <code>clearnet-backend/src/billing/pricing.ts</code> (quotas, commissions, Price IDs, mapping webhook).</li>
+      <li><b>Endpoints</b> : <code>POST /api/billing/create-checkout { tier }</code> (défaut PRO) ; <code>GET /api/billing/status</code> (quotaUsed/quotaMax, <code>null</code> = illimité) ; <code>POST /api/webhooks/stripe</code> (tier résolu par Price ID → repli <code>metadata.tier</code> → défaut PRO).</li>
+      <li><b>Commission</b> : <code>feeRate</code> du niveau timbré sur chaque nœud <code>Transaction</code> (prélèvement automatisé : P2).</li>
+      <li><b>Config</b> : <code>STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE</code>, <code>BILLING_FREE_QUOTA=15</code> ; Helm (configmap + values) mis à jour ; détails dans <code>TARIFICATION_V1_5.md</code>.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 13. VALIDATION ============ -->
+  <section>
+    <h2><span class="num">13</span> Résultats de validation</h2>
     <p>Toutes les vérifications ci-dessous ont été <b>exécutées réellement</b> sur la machine de développement (Windows, Node 24, Docker Desktop / WSL2) et documentées dans les livrables :</p>
     <table>
       <tr><th>Composant</th><th>Vérification</th><th>Commande</th><th>Résultat</th></tr>
@@ -600,13 +628,13 @@
 
   <!-- ============ 13. ATTENTIONS ============ -->
   <section>
-    <h2><span class="num">13</span> Points d'attention &amp; limites</h2>
+    <h2><span class="num">14</span> Points d'attention &amp; limites</h2>
     <table>
       <tr><th>#</th><th>Point</th><th>Recommandation</th></tr>
       <tr><td>1</td><td>Secrets en dur par défaut (<code>JWT_SECRET=change-me-in-production</code>, mot de passe Neo4j, <code>DEMO_API_KEY</code>)</td><td>Remplacer dans les <code>.env</code> avant toute exposition ; secret manager en prod</td></tr>
       <tr><td>2</td><td>Neo4j en réseau local sans TLS ni auth renforcée</td><td>Limiter les ports aux interfaces de confiance ; Neo4j managé + HTTPS en prod</td></tr>
       <tr><td>3</td><td>Pont on-chain en fire-and-forget : une transaction hors-chaîne peut rester sans règlement on-chain (échec silencieux hors <code>onchainStatus</code>)</td><td>File de réconciliation / retry et supervision du champ <code>onchainStatus</code></td></tr>
-      <tr><td>4</td><td>Sondes Helm sur <code>/health</code> alors que la route réelle est <code>/api/health</code></td><td>Corriger <code>backend-deployment.yaml</code> avant tout déploiement K8s</td></tr>
+      <tr><td>4</td><td>Sondes Helm sur <code>/health</code> alors que la route réelle est <code>/api/health</code></td><td><b>✔ Corrigé</b> — <code>backend-deployment.yaml</code> (startup/readiness/liveness → <code>/api/health</code>, vérifié avant déploiement K8s)</td></tr>
       <tr><td>5</td><td>Devnet Helm épinglé <code>hardhat@2.19.4</code> vs <code>^2.22.2</code> dans le repo</td><td>Aligner les versions</td></tr>
       <tr><td>6</td><td>Rate-limiting global sans verrouillage spécifique du login (compteurs IP)</td><td>Politique de verrouillage login (compteurs par IP/email)</td></tr>
       <tr><td>7</td><td>Pas de gestion des rôles (tout utilisateur authentifié peut tout faire ; mint réservé au propriétaire du contrat)</td><td>Prévoir un rôle <code>admin</code> applicatif pour l'émission</td></tr>
@@ -619,23 +647,24 @@
     </table>
   </section>
 
-  <!-- ============ 14. SUITE ============ -->
+  <!-- ============ 15. SUITE ============ -->
   <section>
-    <h2><span class="num">14</span> Prochaines étapes recommandées</h2>
+    <h2><span class="num">15</span> Prochaines étapes recommandées</h2>
     <ol>
       <li><b>Déployer le pont Sepolia réellement</b> (deploy → verify → validate) et compléter le registre opérationnel (<code>PONT_SEPOLIA_DEPLOYMENT.md</code> §8) ; corriger les sondes Helm (<code>/api/health</code>).</li>
       <li><b>Générer les artefacts ZK</b> (WSL2), déployer <code>Verifier.sol</code>, activer <code>ZK_ENABLED=true</code> + <code>VERIFIER_ADDRESS</code> (<code>PHASE2_DEPLOYMENT.md</code> §4–5).</li>
       <li><b>Activer la conformité</b> : migration Neo4j (country/industry), liste OFAC complète, revue des pays ITAR avant <code>ITAR_ENABLED=true</code>.</li>
       <li><b>Oracles</b> : poser les vraies clés Stormglass/Space-Track, valider les seuils de demeurage avec l'exploitation.</li>
-      <li><b>CI/CD</b> : GitHub Actions (build + test par composant, <code>helm lint</code> + <code>helm template</code>), registre GHCR, <code>git init</code> + branches <code>main</code>/<code>develop</code> + tags v1.1 → v1.2.</li>
+      <li><s><b>CI/CD</b> : GitHub Actions (build + test par composant, <code>helm lint</code> + <code>helm template</code>), registre GHCR, <code>git init</code> + branches <code>main</code>/<code>develop</code> + tags v1.1 → v1.2.</s> <b>✔ Fait</b> — <code>.github/workflows/ci-cd.yml</code> (7 jobs, gitleaks, APK release + vérification).</li>
+      <li><b>Mise en production facturation V1.5</b> : créer les 3 Prices Stripe (Essentiel/Pro/Enterprise), injecter les Price IDs + clés (existingSecret), <code>BILLING_ENABLED=true</code>, valider le webhook en mode test.</li>
       <li><b>Déploiement réel</b> : kind/EKS + chart Helm, audit des contrats, Neo4j managé, mot de passe secret manager, réconciliation du pont on-chain.</li>
       <li><b>Fonctionnel</b> : React Navigation mobile, rôles applicatifs, organisations multi-utilisateurs, états de transaction (created/settled/failed).</li>
     </ol>
   </section>
 
-  <!-- ============ 15. EXECUTION ============ -->
+  <!-- ============ 16. EXECUTION ============ -->
   <section>
-    <h2><span class="num">15</span> Instructions d'exécution</h2>
+    <h2><span class="num">16</span> Instructions d'exécution</h2>
 
     <h3>Prérequis (identiques Mac &amp; Windows)</h3>
     <ul>
@@ -683,6 +712,31 @@
 <span class="comment"># Sepolia : <code>npm run deploy:sepolia</code> → verify → validate (voir §11)</span>
 <span class="comment"># ZK : bash scripts/generate-zk-keys.sh (WSL2) → artefacts + Verifier.sol</span>
 <span class="comment"># Cluster : helm install clearnet infrastructure/helm/clearnet -n clearnet --create-namespace</span></pre>
+  </section>
+
+  <!-- ============ 17. V1.5 ============ -->
+  <section>
+    <h2><span class="num">17</span> V1.5 — Planification livrée (i18n · FX temps réel · ZK batch · sync)</h2>
+    <p><b>Focus V1.5</b> : internationalisation (i18n 4 langues, multi-devises EUR/USD/GBP/CHF,
+    convertisseur temps réel), socle ZK industrialisé (batch netting Poseidon, cérémonie Phase 2,
+    déploiement L2) et synchronisation on-chain → Neo4j. Les six plans sont <b>livrés, prêts à
+    exécuter, off par défaut</b> — aucun changement de comportement V1.4 tant que les flags
+    restent inactifs.</p>
+    <table>
+      <tr><th>Document</th><th>Périmètre</th><th>Flag</th><th>État</th></tr>
+      <tr><td class="mono">I18N_CURRENCY_UPGRADE.md</td><td>i18n 4 langues, multi-devises (oracles Chainlink + statique), convertisseur temps réel (REST <code>/api/fx/*</code> + WS <code>/fx</code>)</td><td class="mono">I18N_ENABLED · MULTI_CURRENCY_ENABLED</td><td>✅ Plan 3 j</td></tr>
+      <tr><td class="mono">RECOMMANDATION_DEPLOIEMENT_L2.md</td><td>Socle ZK sur <b>Polygon zkEVM</b> (batch proofs ≪ 0,01 $/tx — Arbitrum Orbit ≠ ZK, corrigé)</td><td>— (déploiement)</td><td>✅ Reco val</td></tr>
+      <tr><td class="mono">CEREMONIE_TRUSTED_SETUP.md</td><td>Cérémonie Phase 2 (PPoT + snarkjs web SRI/air-gap, 8–12 contributeurs, déchets toxiques)</td><td>circuit à geler</td><td>✅ 3 sem.</td></tr>
+      <tr><td class="mono">SYNC_ONCHAIN_NEO4J.md</td><td>Indexeur on-chain → Neo4j : finalité chaîne-dépendante, reorgs soft, checkpoint atomique</td><td class="mono">SYNC_ENABLED</td><td>✅ Archi</td></tr>
+      <tr><td class="mono">RECONCILIATION_WORKER_INTEGRATION.md</td><td>Worker BullMQ <code>reconciliation</code> : corrélation par hash, statuts PENDING/SUCCESS/REORG_ROLLBACK, métriques</td><td class="mono">RECONCILIATION_ENABLED</td><td>✅ Code + spec</td></tr>
+      <tr><td class="mono">ZK_BATCH_INTEGRATION.md</td><td>Circuit <code>ClearNetBatchNetting.circom</code> (Poseidon), <code>VerifierBatch.sol</code>, <code>ZkBatchService</code>, <code>settleBatchWithProof</code></td><td class="mono">ZK_BATCH_ENABLED</td><td>✅ Code + tests</td></tr>
+    </table>
+    <p class="muted"><b>Suite de tests cible V1.5</b> : 30 + 4 (reconciliation) + 4 (zkbatch) = 38
+    backend ; contrats 5/5 intacts + VerifierBatch.sol ; flows Maestro inchangés (testIDs stables).
+    Chaque flag indépendant, réversible, provisionné via .env.example/Helm.
+    <br><b>Revue croisée</b> : <code>REVUE_V1_5_VIGILANCE.md</code> — 6 points de vigilance
+    (keyring HKDF, correctif circom, mapping batch×réconciliation, oracle multi-source, benchmarks
+    gas, gate de gel) + roadmap S1→S4 + matrice de suivi.</p>
   </section>
 
   <footer>

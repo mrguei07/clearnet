@@ -54,6 +54,34 @@ export class UsersService {
     }
   }
 
+  /**
+   * Suppression de compte (RGPD / droit à l'effacement + exigence Google Play).
+   * Anonymise le nœud :User plutôt que de le détruire afin de préserver
+   * l'intégrité du registre de compensation (les :Transaction restent reliées
+   * à un expéditeur/destinataire pseudonymisé, l'historique des contreparties
+   * reste cohérent). L'email devient injoignable et le hash de mot de passe est
+   * retiré : la connexion devient impossible.
+   */
+  async deleteAccount(id: string): Promise<boolean> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `MATCH (u:User {id: $id})
+         SET u.email = 'deleted+' + u.id + '@clearnet.invalid',
+             u.name = 'Compte supprimé',
+             u.passwordHash = null,
+             u.country = null,
+             u.industry = null,
+             u.deletedAt = datetime()
+         RETURN u`,
+        { id },
+      );
+      return result.records.length > 0;
+    } finally {
+      await session.close();
+    }
+  }
+
   async create(input: {
     email: string;
     name: string;

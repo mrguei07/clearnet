@@ -7,7 +7,9 @@ Monorepo Full-Stack DeFi (MVP) :
 | `clearnet-backend` | NestJS 10 + Neo4j 5 (API REST) |
 | `clearnet-blockchain` | Hardhat + Solidity 0.8.19 (token ERC20 + moteur de compensation) |
 | `clearnet-mobile` | React Native 0.72 + Expo 49 |
-| `infrastructure` | Docker Compose (Neo4j + backend) |
+| `infrastructure` | Docker Compose (Neo4j + Redis + backend) + override local |
+| `scripts` | Scripts opérationnels (seed, validation, prod) |
+| `docs` | Livrables & dossiers techniques (rapports, plans, logo) |
 
 ## Prérequis (identiques Mac et Windows)
 
@@ -30,6 +32,11 @@ Copy-Item infrastructure\.env.example infrastructure\.env   # PowerShell
 
 docker compose -f infrastructure/docker-compose.yml up -d --build
 ```
+
+> **Windows (poste local)** : si le moteur Docker rame ou si vous voulez le mode natif,
+> voir `docs/OPERATIONS.md` — une stack native (Redis + Neo4j + Node) et des lanceurs
+> prêts à l'emploi y sont décrits. L'override `infrastructure/docker-compose.override.yml`
+> monte `dist`/`node_modules` locaux dans le conteneur backend (pas de re-build Docker).
 
 Vérification :
 - Neo4j Browser : http://localhost:7474 (login `neo4j` / `clearnet123`)
@@ -84,17 +91,24 @@ npx expo start            # puis appuyez sur a (Android) ou i (iOS)
 
 ### Build APK Android (release)
 
-> ⚠️ **Obligatoire après CHAQUE `npm install`/`npm ci` et après tout `expo prebuild`** :
-> `patch-build.ps1` applique les correctifs Gradle 8 requis par la stack SDK 49 (miroir de plugins, guards `components.release`, `archiveClassifier`, classes legacy expo-splash-screen). Sans lui, le build échoue.
+> ⚠️ **Obligatoire pour CE repo** :
+> 1. **JDK 17 requis** (AGP 8.0/sdkmanager refuse Java 21/24) — ex. Temurin 17,
+>    `JAVA_HOME` pointé dessus pour toute commande Gradle.
+> 2. **Hermes désactivé** (canonical : `app.json` → `expo-build-properties` → `hermes: false`,
+>    propagé par `expo prebuild` dans `android/gradle.properties`). Hermes provoque un crash
+>    écran blanc sur certains appareils ARM (MediaTek) : garder ce réglage.
+> 3. `android/` est **généré** (gitignored) : un clone frais doit lancer `npx expo prebuild`
+>    avant tout build Gradle.
 
 ```powershell
 cd clearnet-mobile
 npm install
-powershell -ExecutionPolicy Bypass -File .\patch-build.ps1   # correctifs obligatoires (idempotent)
+npx expo prebuild --platform android          # régénère android/ (hermes off inclus)
+powershell -ExecutionPolicy Bypass -File .\patch-build.ps1   # correctifs Gradle 8 (idempotent, si présent)
 .\build-gradle.cmd                                          # assembleRelease -> android\app\build\outputs\apk\release\app-release.apk
 ```
 
-Détails, FAQ et validation complète : voir `BUILD_FIX_GUIDE.md` (racine du repo).
+Détails, FAQ et validation complète : voir `docs/BUILD_FIX_GUIDE.md`.
 
 ## Dépannage rapide
 

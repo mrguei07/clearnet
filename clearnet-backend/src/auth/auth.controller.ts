@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -28,5 +28,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   profile(@CurrentUser() user: CurrentUserPayload) {
     return { user };
+  }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAccount(@CurrentUser() user: CurrentUserPayload) {
+    return this.authService.deleteAccount(user.userId);
   }
 }

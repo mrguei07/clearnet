@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearNet — Complete technical project report</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #111a2c;
+    --panel2: #0f172a;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --violet: #a78bfa;
+    --mono: "Consolas", "SF Mono", "Menlo", "Courier New", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.65;
+    padding-bottom: 80px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 48px 0 32px;
+    background: linear-gradient(180deg, #0f1b33 0%, var(--bg) 100%);
+  }
+  .badge {
+    display: inline-block;
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--accent);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 999px;
+    padding: 3px 14px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 38px; font-weight: 800; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); margin-top: 8px; font-size: 16px; max-width: 900px; }
+  .meta { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 12px; }
+  .meta span {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .meta b { color: var(--text); font-weight: 600; }
+
+  section { margin-top: 48px; }
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    background: var(--accent);
+    color: #0b1220;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 800;
+    padding: 2px 10px;
+  }
+  h3 { font-size: 17px; margin: 28px 0 10px; color: var(--accent); }
+  h4 { font-size: 15px; margin: 20px 0 8px; color: var(--text); }
+  p { margin: 10px 0; color: var(--text); }
+  .muted { color: var(--muted); font-size: 14px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 16px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .card .name { font-weight: 700; font-size: 15px; }
+  .card .tech { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-top: 6px; display: block; }
+  .card .desc { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; background: var(--panel); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--panel2); color: var(--accent); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
+  tr:last-child td { border-bottom: none; }
+  td.mono { font-family: var(--mono); font-size: 13px; }
+
+  .ok { color: var(--green); font-weight: 700; }
+  .warn { color: var(--amber); font-weight: 700; }
+  .ko { color: var(--red); font-weight: 700; }
+  .violet { color: var(--violet); font-weight: 700; }
+
+  pre {
+    background: #0a0f1a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 14px 0;
+    color: #cbd5e1;
+  }
+  code { font-family: var(--mono); font-size: 13px; background: rgba(56,189,248,0.08); color: var(--accent); padding: 1px 6px; border-radius: 5px; }
+  .cmd { color: var(--green); }
+  .cmd::before { content: "$ "; color: var(--muted); }
+
+  .tree { font-family: var(--mono); font-size: 12.5px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; overflow-x: auto; }
+  .tree .dir { color: var(--accent); font-weight: 600; }
+  .tree .file { color: #cbd5e1; }
+  .tree .comment { color: var(--muted); font-style: italic; }
+  .tree div { white-space: pre; }
+
+  .callout { border-left: 4px solid var(--accent); background: rgba(56,189,248,0.07); padding: 14px 18px; border-radius: 0 10px 10px 0; margin: 16px 0; }
+  .callout.warn { border-color: var(--amber); background: rgba(251,191,36,0.07); }
+  .callout.danger { border-color: var(--red); background: rgba(248,113,113,0.07); }
+  .callout.ok { border-color: var(--green); background: rgba(74,222,128,0.07); }
+
+  ul, ol { margin: 10px 0 10px 22px; }
+  li { margin: 5px 0; }
+  li b { color: var(--text); }
+
+  footer { border-top: 1px solid var(--border); margin-top: 64px; padding-top: 24px; color: var(--muted); font-size: 13px; text-align: center; }
+
+  .endpoint { display: flex; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
+  .endpoint:last-child { border-bottom: none; }
+  .method { font-family: var(--mono); font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px; min-width: 52px; text-align: center; }
+  .get { background: rgba(74,222,128,0.15); color: var(--green); }
+  .post { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .path { font-family: var(--mono); color: #cbd5e1; }
+  .lock { color: var(--amber); font-size: 12px; }
+
+  @media print {
+    body { background: #fff; color: #111; }
+    .card, table, pre, .tree, .callout { background: #f8fafc; border-color: #ddd; }
+    h2 .num { background: #38bdf8; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="badge">Technical report — generated on 09/08/2026 · project status: V1.2 (Phase 2 + Sepolia bridge)</span>
+    <h1>ClearNet — Complete technical project report</h1>
+    <p class="subtitle">Decentralized netting engine · Full-Stack DeFi: NestJS 10 + Neo4j 5 API, Solidity 0.8.19 contracts (Hardhat), Expo 49/React Native 0.72 mobile, Docker Compose + Helm infrastructure. From the initial Markdown bundle to an executable monorepo validated E2E (9/9), hardened for production (ZK Groth16, ITAR/OFAC compliance, oracles, Kubernetes, Sepolia bridge).</p>
+    <div class="meta">
+      <span>Backend <b>NestJS 10 + Neo4j 5</b></span>
+      <span>Blockchain <b>Hardhat · Solidity 0.8.19</b></span>
+      <span>Mobile <b>React Native 0.72 · Expo 49</b></span>
+      <span>Infra <b>Docker Compose + Helm</b></span>
+      <span>≈ <b>122</b> tracked files</span>
+      <span>Docker E2E <b>9/9 ✔</b></span>
+      <span>Tests <b>11/11 ✔</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ TABLE OF CONTENTS ============ -->
+  <section>
+    <h2><span class="num">0</span> Table of contents</h2>
+    <ol>
+      <li><b>Overview</b> — objective, stack, timeline V1.0 → V1.1 → V1.2</li>
+      <li><b>Global architecture</b> — component and flow diagram</li>
+      <li><b>File structure</b> — complete monorepo tree</li>
+      <li><b>Backend (NestJS)</b> — modules, routes, security, environment variables</li>
+      <li><b>On-chain bridge</b> — backend → contracts mechanics (V1.1 → V1.2)</li>
+      <li><b>Blockchain (Hardhat)</b> — contracts, ZK circuit, scripts, networks</li>
+      <li><b>Mobile (Expo)</b> — screens and API client</li>
+      <li><b>Infrastructure</b> — Docker Compose, Kubernetes Helm chart, E2E scripts</li>
+      <li><b>Sector extension</b> — Maritime / Spatial / Biotech</li>
+      <li><b>Phase 2 (hardening)</b> — ZK, ITAR/OFAC, oracles (flags detail)</li>
+      <li><b>Sepolia deployment</b> — on-chain bridge on testnet</li>
+      <li><b>Billing &amp; Pricing (V1.4 → V1.5)</b> — Stripe, 4 tiers, 402 quota</li>
+      <li><b>Validation results</b> — real recorded executions</li>
+      <li><b>Points of attention &amp; limitations</b></li>
+      <li><b>Recommended next steps</b></li>
+      <li><b>V1.5 — delivered planning</b> (i18n · real-time FX · ZK batch · sync)</li>
+      <li><b>Execution instructions</b></li>
+    </ol>
+  </section>
+
+  <!-- ============ 1. OVERVIEW ============ -->
+  <section>
+    <h2><span class="num">1</span> Overview</h2>
+    <p><b>ClearNet</b> is a decentralized netting engine: a shared ledger of receivables/debts (Neo4j graph database) enriched with an on-chain netting engine (CLRN ERC20 token + net positions) that only uses the net balance to be settled, backed by a mobile application.</p>
+
+    <div class="grid">
+      <div class="card"><span class="name">Mobile application</span><span class="tech">React Native 0.72 · Expo SDK 49</span><p class="desc">Login / registration, CLRN transfer, history with direction, one-tap partner demo mode.</p></div>
+      <div class="card"><span class="name">REST API</span><span class="tech">NestJS 10 · JWT · class-validator</span><p class="desc">Auth, users, transactions, companies/sectors, on-chain bridge, oracles, demo. Global <code>/api</code> prefix, CORS, strict ValidationPipe.</p></div>
+      <div class="card"><span class="name">Graph database</span><span class="tech">Neo4j 5.26 (Docker)</span><p class="desc">Nodes <code>:User</code>, <code>:Transaction</code>, <code>:Company</code>; <code>SENT</code>/<code>RECEIVED</code> relationships; IDs via <code>randomUUID()</code>.</p></div>
+      <div class="card"><span class="name">Smart contracts</span><span class="tech">Solidity 0.8.19 · OpenZeppelin 4.9</span><p class="desc"><code>ClearNetToken</code> (CLRN), <code>CompensationEngine</code> (netting + optional ZK gate), <code>ChainlinkPriceFeed</code>.</p></div>
+    </div>
+
+    <h3>1.1 Project timeline</h3>
+    <table>
+      <tr><th>Version</th><th>Deliverables</th><th>Status</th></tr>
+      <tr><td class="mono">V1.0 (initial bundle)</td><td><code>deepseek_markdown_20260806_2272ca.md</code> — an “80% bundle” announcing 5 sections, actually containing a single file (60 lines of package.json). Unexecutable project.</td><td><span class="ko">Initial audit</span></td></tr>
+      <tr><td class="mono">V1.1</td><td><code>CLEARNET-V1.1-REMEDIATION.md</code> (1487 lines) — complete monorepo: Docker E2E 9/9 ✔, security (rate-limit, demo API key), backend→contracts on-chain bridge, Sepolia preparation, partner demo (alice/bob/carol), global validation; <code>SECTOR_EXTENSION.md</code> (521 lines) — Maritime/Spatial/Biotech extension (<code>company</code> module, 15 sectors).</td><td><span class="ok">Validated (07-08/08/2026)</span></td></tr>
+      <tr><td class="mono">V1.2</td><td><code>PHASE2_RESPONSE.md</code> (47 KB) + <code>PHASE2_DEPLOYMENT.md</code> — production hardening: ZK Groth16 (circom/snarkjs/Verifier.sol), ITAR/OFAC compliance, sectoral oracles, Helm chart; <code>PONT_SEPOLIA_RESPONSE.md</code> + <code>PONT_SEPOLIA_DEPLOYMENT.md</code> — Sepolia on-chain bridge (deploy/verify/validate).</td><td><span class="ok">Delivered — controlled activations</span></td></tr>
+      <tr><td class="mono">Documentation</td><td><code>README.md</code> (bilingual Mac/Windows), <code>README-DEMO.md</code> (30-min partner demo guide), <code>rapport.html</code> (this document).</td><td><span class="ok">Up to date</span></td></tr>
+    </table>
+
+    <h3>1.2 Golden rule</h3>
+    <div class="callout">
+      Each hardening mechanism is protected by a <b>feature flag disabled by default</b>
+      (<code>ONCHAIN_ENABLED</code>/<code>BLOCKCHAIN_ENABLED</code>, <code>ITAR_ENABLED</code>,
+      <code>ORACLES_ENABLED</code>, <code>ZK_ENABLED</code>) — the V1.1 off-chain behavior is
+      strictly preserved and each activation is reversible.
+    </div>
+  </section>
+
+  <!-- ============ 2. ARCHITECTURE ============ -->
+  <section>
+    <h2><span class="num">2</span> Global architecture</h2>
+    <pre>┌──────────────┐   HTTP/JSON (JWT)    ┌──────────────────┐   Bolt/7687   ┌──────────────┐
+│  clearnet-   │ ────────────────────► │  clearnet-       │ ────────────► │  Neo4j 5.26  │
+│  mobile      │                       │  backend         │               │  (Docker)    │
+│  (Expo 49)   │                       │  (NestJS 10)     │               │ :User :Tx    │
+└──────────────┘                       └──────────────────┘               │ :Company     │
+     │                                        │                          └──────────────┘
+     │                      on-chain bridge (ONCHAIN_ENABLED, fire-and-forget)
+     ▼                                        ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  clearnet-blockchain (Hardhat · Solidity 0.8.19)                                       │
+│  ClearNetToken (ERC20 CLRN) · CompensationEngine (netting ±) · ChainlinkPriceFeed      │
+│  Optional ZK gate: IZkVerifier (Groth16) · circuit transaction.circom (Poseidon)        │
+│  Networks: localhost · clearnet (remote RPC) · sepolia (chainId 11155111)              │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+     │ ITAR / OFAC / oracles (flags off by default — Phase 2)
+     ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│  Hardening: ComplianceService (ITAR/OFAC) · OracleService (Stormglass / Space-Track     │
+│  / ClinicalTrials.gov) · GraphService (cycle urgency) · ZkProofService (snarkjs)        │
+│  K8s: Helm chart clearnet v2.0.0 (HPA 2→5, Ingress, StatefulSet Neo4j + PVC 10 Gi)      │
+└────────────────────────────────────────────────────────────────────────────────────────┘</pre>
+
+    <h3>2.1 Transaction flow</h3>
+    <ol>
+      <li>The mobile app calls <code>POST /api/transactions</code> (JWT) with <code>{toEmail, amount, note?}</code>.</li>
+      <li>The backend validates the DTO, rejects self-transactions, then runs <code>assertCompliance()</code> (ITAR/OFAC — no-op if <code>ITAR_ENABLED=false</code>).</li>
+      <li>The <code>:Transaction</code> node is created in Neo4j with the <code>SENT</code>/<code>RECEIVED</code> relationships.</li>
+      <li>If the bridge is active (<code>ONCHAIN_ENABLED=true</code>), <code>settleCompensation()</code> is called <b>fire-and-forget</b> (the HTTP response is never blocked); the result (<code>onchainHash</code>, <code>onchainStatus</code> SUCCESS/FAILED) is written on the node.</li>
+      <li>On-chain settlement requires <code>netPositions[from] &ge; amount</code> and <code>netPositions[to] &le; 0</code> — only the <b>net</b> balance is used.</li>
+    </ol>
+  </section>
+
+  <!-- ============ 3. STRUCTURE ============ -->
+  <section>
+    <h2><span class="num">3</span> File structure</h2>
+    <p class="muted">Excluded targets: <code>node_modules</code>, <code>dist/</code>, <code>build/</code>, <code>artifacts/</code>, <code>cache/</code>, <code>typechain-types/</code>, <code>.expo/</code> (build outputs or caches).</p>
+    <div class="tree">
+<div><span class="dir">C:\dev\ClearNet\</span>  <span class="comment">· 11 root documents + 4 components + scripts</span></div>
+<div>├── <span class="file">.gitignore</span>   <span class="comment">· root exclusions (.env, node_modules, dist…)</span></div>
+<div>├── <span class="file">README.md</span>          <span class="comment">· Mac &amp; Windows instructions</span></div>
+<div>├── <span class="file">README-DEMO.md</span>     <span class="comment">· partner demo guide (30 min)</span></div>
+<div>├── <span class="file">deepseek_markdown_20260806_2272ca.md</span>  <span class="comment">· original V1.0 bundle (1 file, package.json)</span></div>
+<div>├── <span class="file">CLEARNET-V1.1-REMEDIATION.md</span>   <span class="comment">· V1.1 fixes/extensions (1487 lines)</span></div>
+<div>├── <span class="file">SECTOR_EXTENSION.md</span>            <span class="comment">· Maritime/Spatial/Biotech extension (521 lines)</span></div>
+<div>├── <span class="file">PHASE2_RESPONSE.md</span> · <span class="file">PHASE2_DEPLOYMENT.md</span>   <span class="comment">· Phase 2: diffs + operational procedure</span></div>
+<div>├── <span class="file">PONT_SEPOLIA_RESPONSE.md</span> · <span class="file">PONT_SEPOLIA_DEPLOYMENT.md</span>  <span class="comment">· Sepolia bridge: code + procedure</span></div>
+<div>├── <span class="file">rapport.html</span>       <span class="comment">· this document</span></div>
+<div>│</div>
+<div>├── <span class="dir">clearnet-backend/</span>  <span class="comment">· NestJS 10 + Neo4j 5 — v1.2.0 (61 files)</span></div>
+<div>│   ├── <span class="file">package.json · tsconfig.json · tsconfig.build.json · nest-cli.json · jest.config.js</span></div>
+<div>│   ├── <span class="file">.env.example · Dockerfile · .dockerignore · .gitignore</span></div>
+<div>│   └── <span class="dir">src/</span></div>
+<div>│       ├── <span class="file">main.ts</span>             <span class="comment">· bootstrap: /api prefix, CORS, strict ValidationPipe</span></div>
+<div>│       ├── <span class="file">app.module.ts</span> · <span class="file">app.controller.ts</span> · <span class="file">app.service.ts</span> · <span class="file">app.controller.spec.ts</span></div>
+<div>│       ├── <span class="dir">neo4j/</span>         <span class="comment">· global module: driver + clean shutdown (onApplicationShutdown)</span></div>
+<div>│       ├── <span class="dir">auth/</span>          <span class="comment">· controller/service, JwtStrategy, guard, decorator, DTOs (+country, industry)</span></div>
+<div>│       ├── <span class="dir">users/</span>         <span class="comment">· findByEmail/findById/create — :User nodes (sanctioned: false)</span></div>
+<div>│       ├── <span class="dir">transactions/</span>  <span class="comment">· create + history, assertCompliance(), fire-and-forget on-chain bridge</span></div>
+<div>│       ├── <span class="dir">blockchain/</span>    <span class="comment">· ethers v6 bridge: constants (ABIs), types, service, controller /api/blockchain</span></div>
+<div>│       ├── <span class="dir">company/</span>       <span class="comment">· Industry enum (15), companies.controller/service, industries.controller</span></div>
+<div>│       ├── <span class="dir">compliance/</span>    <span class="comment">· Phase 2: ITAR/OFAC service + guards</span></div>
+<div>│       ├── <span class="dir">oracles/</span>       <span class="comment">· Phase 2: controller /api/oracles — Stormglass, Space-Track, ClinicalTrials.gov</span></div>
+<div>│       ├── <span class="dir">zkproof/</span>       <span class="comment">· Phase 2: Groth16 proofs (snarkjs), on/off-chain verification</span></div>
+<div>│       ├── <span class="dir">graph/</span>         <span class="comment">· Phase 2: cycle urgency factor (demurrage oracle)</span></div>
+<div>│       ├── <span class="dir">demo/</span>          <span class="comment">· partner demo seed/status (X-Demo-Key)</span></div>
+<div>│       ├── <span class="dir">types/snarkjs.d.ts</span>  <span class="comment">· missing snarkjs typings</span></div>
+<div>│       └── <span class="dir">common/guards/</span> <span class="comment">· rate-limit.guard (global), demo-api-key.guard</span></div>
+<div>│</div>
+<div>├── <span class="dir">clearnet-blockchain/</span>  <span class="comment">· Hardhat — Solidity 0.8.19 (17 source files)</span></div>
+<div>│   ├── <span class="file">hardhat.config.ts</span>  <span class="comment">· localhost / clearnet / sepolia networks + Etherscan</span></div>
+<div>│   ├── <span class="file">package.json · tsconfig.json · .env.example · .gitignore</span></div>
+<div>│   ├── <span class="dir">contracts/</span> <span class="file">ClearNetToken.sol · CompensationEngine.sol · ChainlinkPriceFeed.sol</span></div>
+<div>│   ├── <span class="dir">contracts/interfaces/IZkVerifier.sol</span>  <span class="comment">· + Verifier.sol (generated by snarkjs, not versioned)</span></div>
+<div>│   ├── <span class="dir">circuits/transaction.circom</span>  <span class="comment">· ZK circuit (Poseidon, amount ≤ cap)</span></div>
+<div>│   ├── <span class="dir">scripts/</span> <span class="file">deploy.ts · deploy-sepolia.ts · verify-sepolia.ts · validate-sepolia.ts · generate-zk-keys.sh</span></div>
+<div>│   └── <span class="dir">test/compensation.test.ts</span>  <span class="comment">· token + netting tests</span></div>
+<div>│</div>
+<div>├── <span class="dir">clearnet-mobile/</span>  <span class="comment">· Expo SDK 49 — v1.2.0 (13 files)</span></div>
+<div>│   ├── <span class="file">App.tsx · app.json · babel.config.js · tsconfig.json · package.json · .env.example</span></div>
+<div>│   └── <span class="dir">src/</span> <span class="file">api/client.ts</span> <span class="comment">· auto URL 10.0.2.2/localhost</span></div>
+<div>│       └── <span class="dir">screens/</span> <span class="file">LoginScreen.tsx · HomeScreen.tsx · DemoScreen.tsx</span></div>
+<div>│</div>
+<div>├── <span class="dir">infrastructure/</span>  <span class="comment">· Docker + Helm + E2E (17 files)</span></div>
+<div>│   ├── <span class="file">docker-compose.yml</span> · <span class="file">.env.example</span> · <span class="file">test-e2e.sh</span> · <span class="file">test-e2e.ps1</span></div>
+<div>│   └── <span class="dir">helm/clearnet/</span>  <span class="comment">· Chart v2.0.0, appVersion 1.2.0 — 13 files</span></div>
+<div>│       ├── <span class="file">Chart.yaml · values.yaml · templates/_helpers.tpl</span></div>
+<div>│       └── <span class="dir">templates/</span> <span class="file">backend-configmap · backend-deployment · backend-hpa · backend-ingress · backend-service · blockchain-deployment · blockchain-service · neo4j-secret · neo4j-service · neo4j-statefulset</span></div>
+<div>│</div>
+<div>└── <span class="dir">scripts/</span>  <span class="comment">· seed-demo.sh · validate-all.sh · validate-all.ps1</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 4. BACKEND ============ -->
+  <section>
+    <h2><span class="num">4</span> Backend — REST API (NestJS 10)</h2>
+
+    <h3>4.1 Routes</h3>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api</span><span>Welcome message</span><span>—</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/health</span><span>Service status + Neo4j connectivity (<code>verifyConnectivity</code>)</span><span>—</span></div>
+    <div class="endpoint"><span class="method post">POST</span><span class="path">/api/auth/register</span><span><code>{email, name, password, country?, industry?}</code> → JWT · <code>@Throttle 10/60s</code> · bcrypt 10 rounds</span><span>—</span></div>
+    <div class="endpoint"><span class="method post">POST</span><span class="path">/api/auth/login</span><span><code>{email, password}</code> → <code>{access_token, user}</code> · <code>@Throttle 5/60s</code></span><span>—</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/auth/profile</span><span>Current token profile</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/users/me</span><span>User from Neo4j (without <code>passwordHash</code>)</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method post">POST</span><span class="path">/api/transactions</span><span><code>{toEmail, amount (≤8 decimals, ≥1e-8), note? (≤280)}</code> → on-chain bridge if active</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/transactions/history?limit=50</span><span>History, resolved sender/recipient (Cypher SENT/RECEIVED)</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method post">POST</span><span class="path">/api/companies</span><span><code>{name, industry?, country?, address?}</code> — <code>:Company</code> node</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/companies?industry=Maritime</span><span>Sorted list (LIMIT 500), sector filter</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/companies/:id</span><span>Detail (404 if unknown)</span><span class="lock">● JWT</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/industries</span><span>Catalog of the 15 sectors + company counters</span><span>—</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/industries/stats</span><span><code>{total:15, legacy:12, extension:3}</code></span><span>—</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/industries/:code</span><span>Sector detail (<code>ParseEnumPipe</code> → 400 outside enum)</span><span>—</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/blockchain/status</span><span>Bridge: enabled, network (chainId/name/rpc), signer/token/engine, ZK state, warnings</span><span>—</span></div>
+    <div class="endpoint"><span class="method post">POST</span><span class="path">/api/demo/seed</span><span>Idempotent seed alice/bob/carol + 3 transactions</span><span class="lock">● X-Demo-Key</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/demo/status</span><span>Users/transactions counters</span><span class="lock">● X-Demo-Key</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/oracles/demurrage?lat=&amp;lng=</span><span>Phase 2 — maritime demurrage (Stormglass), 3-day fallback</span><span>— (flag)</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/oracles/launch-window?satellite=</span><span>Phase 2 — launch window (Space-Track), 60-day fallback</span><span>— (flag)</span></div>
+    <div class="endpoint"><span class="method get">GET</span><span class="path">/api/oracles/milestone?nct=</span><span>Phase 2 — biotech milestone validity (ClinicalTrials.gov), fallback true</span><span>— (flag)</span></div>
+
+    <h3>4.2 Security and global hardening</h3>
+    <ul>
+      <li><b>JWT HS256</b> (<code>JWT_SECRET</code>, expiration <code>JWT_EXPIRES_IN</code> default 7 days), Bearer strategy (passport-jwt ^4.0.1).</li>
+      <li><b>bcryptjs</b> (pure JS, no native compilation — deliberate choice for Mac/Windows), 10 rounds.</li>
+      <li><b>Global rate-limiting</b> (<code>@nestjs/throttler</code>): 100 req/60 s by default, hardened <code>@Throttle</code> on <code>/auth/*</code> (login 5/60 s, register 10/60 s); 429 message in French.</li>
+      <li><b>ValidationPipe</b> strict: <code>whitelist</code> + <code>forbidNonWhitelisted</code> (unknown fields rejected).</li>
+      <li><b>Global CORS</b> (<code>origin: true, credentials: true</code>) and <code>/api</code> prefix.</li>
+      <li>Password never exposed (<code>passwordHash</code> stripped from responses).</li>
+      <li>Clean shutdown of the Neo4j driver (<code>onApplicationShutdown</code> hook).</li>
+      <li>Demo API protected by <code>X-Demo-Key</code> header (<code>DEMO_API_KEY</code>).</li>
+    </ul>
+
+    <h3>4.3 Environment variables (<code>clearnet-backend/.env.example</code>)</h3>
+    <table>
+      <tr><th>Variable</th><th>Default</th><th>Role</th></tr>
+      <tr><td class="mono">PORT / NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD</td><td class="mono">3000 · bolt://localhost:7687 · neo4j · clearnet123</td><td>API + graph foundation</td></tr>
+      <tr><td class="mono">JWT_SECRET / JWT_EXPIRES_IN</td><td class="mono">change-me-in-production / 7d</td><td>Authentication</td></tr>
+      <tr><td class="mono">THROTTLE_TTL / THROTTLE_LIMIT</td><td class="mono">60000 / 100</td><td>Global rate-limit</td></tr>
+      <tr><td class="mono">ONCHAIN_ENABLED / BLOCKCHAIN_ENABLED</td><td class="mono">false / false</td><td>On-chain bridge (alias; either one activates)</td></tr>
+      <tr><td class="mono">BLOCKCHAIN_RPC_URL / BLOCKCHAIN_PRIVATE_KEY</td><td class="mono">http://127.0.0.1:8545 · hardhat key #0 (dev)</td><td>RPC + operator signer (fallback <code>PRIVATE_KEY</code>)</td></tr>
+      <tr><td class="mono">CLRN_TOKEN_ADDRESS / COMPENSATION_ENGINE_ADDRESS</td><td class="mono">(empty)</td><td>Deployed contracts (fallbacks <code>CONTRACT_*_ADDRESS</code>)</td></tr>
+      <tr><td class="mono">DEMO_API_KEY</td><td class="mono">demo-secret-change-me</td><td>Partner demo endpoints</td></tr>
+      <tr><td class="mono">ITAR_ENABLED / OFAC_API_KEY / OFAC_CSV_PATH</td><td class="mono">false / empty / empty</td><td>Phase 2 compliance</td></tr>
+      <tr><td class="mono">ORACLES_ENABLED / ORACLE_TIMEOUT_MS</td><td class="mono">false / 2500</td><td>Phase 2 oracles</td></tr>
+      <tr><td class="mono">STORMGLASS_API_KEY / SPACE_TRACK_USER / SPACE_TRACK_PASSWORD</td><td class="mono">(empty)</td><td>Oracle credentials</td></tr>
+<tr><td class="mono">ZK_ENABLED / VERIFIER_ADDRESS / ZK_ARTIFACTS_DIR</td><td class="mono">false / empty / ./zkartifacts</td><td>Phase 2 ZK proofs</td></tr>
+    </table>
+  </section>
+
+  <!-- ============ 5. ON-CHAIN BRIDGE ============ -->
+  <section>
+    <h2><span class="num">5</span> On-chain bridge (backend → contracts)</h2>
+    <p><code>@Global()</code> <code>blockchain</code> module — ethers v6 bridge between the API and the contracts, introduced in V1.1
+    (<code>recordPositionChange</code>) then reworked in V1.2 as <b>asynchronous settlement</b> (<code>settleCompensation</code>).</p>
+    <table>
+      <tr><th>Mechanics</th><th>Detail</th></tr>
+      <tr><td class="mono">Identity</td><td>Deterministic address per email: <code>'0x' + keccak256(email.toLowerCase()).slice(-40)</code> — also used by <code>validate-sepolia.ts</code> for consistency</td></tr>
+      <tr><td class="mono">Execution</td><td><code>POST /api/transactions</code> → <code>blockchainService.settleCompensation(from, to, amount)</code> fire-and-forget; result written on the node (<code>onchainHash</code>, <code>onchainStatus</code>)</td></tr>
+      <tr><td class="mono">ABIs</td><td>String fragments in <code>blockchain.constants.ts</code> (TOKEN_ABI: ERC20 + mint/burn/burnFrom; ENGINE_ABI: updatePosition/netPositions/settle/settleWithProof/setZkSettings/admin/zkRequired/zkbVerifier/maxAmount); <code>TOKEN_DECIMALS = 18</code></td></tr>
+      <tr><td class="mono">RPC fallback</td><td><code>DEFAULT_RPC_URL = https://ethereum-sepolia-rpc.publicnode.com</code></td></tr>
+      <tr><td class="mono">Service methods</td><td><code>tokenBalanceOf · getTokenBalance · mintTo · getTokenInfo · approve · getAllowance · getNetPosition · recordPositionChange · settleCompensation · settleCompensationWithProof · configureZk</code></td></tr>
+      <tr><td class="mono">Errors</td><td><code>OnchainBridgeError('disabled' | 'not-initialized')</code> — graceful degradation, never blocking for the HTTP request</td></tr>
+    </table>
+    <div class="callout warn">
+      <b>V1.2 scaling caveat (documented):</b> the ZK circuit works in micro-CLRN (×1e6) while the on-chain ledger
+      is in wei (×1e18); the ZK gate validates the assertion (amount ≤ cap + commitment),
+      exact micro/wei equality being a next-phase refinement (sufficient for a testnet).
+    </div>
+  </section>
+
+  <!-- ============ 6. BLOCKCHAIN ============ -->
+  <section>
+    <h2><span class="num">6</span> Blockchain — Hardhat (Solidity 0.8.19)</h2>
+
+    <h3>6.1 Contracts</h3>
+    <table>
+      <tr><th>Contract</th><th>Role</th><th>Key functions</th></tr>
+      <tr>
+        <td class="mono">ClearNetToken (CLRN)</td>
+        <td>ERC20 (OpenZeppelin 4.9.3) — the network's asset, Ownable</td>
+        <td class="mono">mint(to, amount) (onlyOwner) · burn(amount)</td>
+      </tr>
+      <tr>
+        <td class="mono">CompensationEngine</td>
+        <td>Netting registry (<b>pure</b>, no ERC20 movement): net positions per account</td>
+        <td class="mono">updatePosition(account, delta) (onlyAdmin) · settle(from, to, amount) · settleWithProof(…) (ZK gate) · setZkSettings(verifier, required, maxAmount)</td>
+      </tr>
+      <tr>
+        <td class="mono">ChainlinkPriceFeed</td>
+        <td>On-chain price oracle ETH/USD · BTC/USD · XAU/USD — <i>stale check</i> 24 h</td>
+        <td class="mono">getEthUsd() · getBtcUsd() · getXauUsd() · getPrices() · refresh()</td>
+      </tr>
+      <tr>
+        <td class="mono">interfaces/IZkVerifier</td>
+        <td>Groth16 verifier interface — 2 public signals <code>[maxAmount, commitment]</code></td>
+        <td class="mono">verifyProof(a, b, c, input) → bool</td>
+      </tr>
+      <tr>
+        <td class="mono">Verifier.sol</td>
+        <td>Generated by snarkjs (<code>generate-zk-keys.sh</code>) — not versioned, overwritten at each run</td>
+        <td class="mono">—</td>
+      </tr>
+    </table>
+    <p class="muted"><code>settle</code> invariants: <code>netPositions[from] &ge; amount</code> and <code>netPositions[to] &le; 0</code>,
+    then <code>Compensated(from, to, amount)</code>. <code>setZkSettings</code> activates proof checking (off by default).</p>
+
+    <h3>6.2 ZK circuit (<code>circuits/transaction.circom</code>)</h3>
+    <ul>
+      <li>Private inputs: <code>sender</code>, <code>receiver</code>, <code>amount</code>; public: <code>maxAmount</code>; output <code>commitment = Poseidon(sender, receiver, amount)</code>.</li>
+      <li>Constraints: amount &gt; 0 (Num2Bits 64 bits + IsZero), amount ≤ cap (LessThan), binding commitment.</li>
+      <li>Artifacts produced by <code>scripts/generate-zk-keys.sh</code>: <code>transaction.wasm</code>, <code>transaction.zkey</code>, <code>verification_key.json</code>, <code>contracts/Verifier.sol</code> (configurable PTAU power, entropy contribution).</li>
+      <li>Backend verification: on-chain via <code>VERIFIER_ADDRESS</code> (off-chain fallback), then off-chain <code>groth16.verify</code> — by <code>ZkProofService</code> (snarkjs ^0.7.4).</li>
+    </ul>
+
+    <h3>6.3 Scripts and networks</h3>
+    <table>
+      <tr><th>Script</th><th>Command</th><th>Function</th></tr>
+      <tr><td class="mono">deploy.ts</td><td class="mono">npm run deploy:local</td><td>Deploys token + engine on localhost</td></tr>
+      <tr><td class="mono">deploy-sepolia.ts</td><td class="mono">npm run deploy:sepolia</td><td>Rejects if balance &lt; 0.05 ETH, deploys, writes <code>deployments/sepolia.json</code></td></tr>
+      <tr><td class="mono">verify-sepolia.ts</td><td class="mono">npm run verify:sepolia</td><td>Etherscan verification (auditability)</td></tr>
+      <tr><td class="mono">validate-sepolia.ts</td><td class="mono">npm run validate:sepolia</td><td>Network E2E: mint 500 → positions +500/−500 → settle 500 → 0/0 check</td></tr>
+      <tr><td class="mono">generate-zk-keys.sh</td><td class="mono">bash scripts/generate-zk-keys.sh</td><td>ZK artifacts (circom + snarkjs, WSL2)</td></tr>
+    </table>
+    <p class="muted"><code>hardhat.config.ts</code> networks: <code>localhost</code> (127.0.0.1:8545), <code>clearnet</code> (RPC + PRIVATE_KEY), <code>sepolia</code> (SEPOLIA_RPC_URL + SEPOLIA_PRIVATE_KEY), Etherscan verification. Optimizer 200 runs.</p>
+  </section>
+
+  <!-- ============ 7. MOBILE ============ -->
+  <section>
+    <h2><span class="num">7</span> Mobile — Expo SDK 49 (React Native 0.72.10)</h2>
+    <table>
+      <tr><th>File</th><th>Role</th></tr>
+      <tr><td class="mono">App.tsx</td><td>Root state machine: persisted token + email (AsyncStorage <code>clearnet.token</code>/<code>clearnet.email</code>), loading splash, Home / Demo / Login routing, <code>onAuthenticated</code>/<code>onLogout</code></td></tr>
+      <tr><td class="mono">src/api/client.ts</td><td>Minimal fetch wrapper: URL resolution (<code>EXPO_PUBLIC_API_URL</code> → <code>http://10.0.2.2:3000/api</code> Android emulator → <code>http://localhost:3000/api</code>), NestJS error extraction <code>{message, statusCode}</code> (message accepts <code>string | string[]</code>)</td></tr>
+      <tr><td class="mono">screens/LoginScreen.tsx</td><td>Login/register toggle (email, name at registration), displayed API errors, access to partner demo mode</td></tr>
+      <tr><td class="mono">screens/HomeScreen.tsx</td><td>Transaction sending (email + CLRN amount), history with direction (« Received from » / « Sent to »), pull-to-refresh, logout</td></tr>
+      <tr><td class="mono">screens/DemoScreen.tsx</td><td>One-tap login to seed accounts (alice/bob/carol@clearnet.io, <code>clearnet-demo</code>)</td></tr>
+    </table>
+    <p class="muted">Config: <code>app.json</code> (bundle iOS/com.android <code>com.clearnet.mobile</code>), babel <code>babel-preset-expo</code>, TypeScript <code>strict</code>,
+    AsyncStorage 1.18.2 (version required by SDK 49 — fixed in V1.1 from 1.19.6), typecheck <code>tsc --noEmit</code> = 0 errors.</p>
+  </section>
+
+  <!-- ============ 8. INFRASTRUCTURE ============ -->
+  <section>
+    <h2><span class="num">8</span> Infrastructure</h2>
+
+    <h3>8.1 Docker Compose (<code>infrastructure/docker-compose.yml</code>)</h3>
+    <table>
+      <tr><th>Service</th><th>Image</th><th>Ports</th><th>Details</th></tr>
+      <tr><td class="mono">neo4j</td><td class="mono">neo4j:5.26</td><td class="mono">7474 · 7687</td><td>Persistent volume <code>neo4j-data</code>; HTTP healthcheck <code>wget localhost:7474</code> (no JVM — made reliable in V1.1, reason: cypher-shell left orphaned JVMs which blocked startup); auth <code>neo4j/${NEO4J_PASSWORD}</code></td></tr>
+      <tr><td class="mono">backend</td><td class="mono">node:20-alpine (multi-stage)</td><td class="mono">3000</td><td><code>npm ci --omit=dev</code> at runtime; healthcheck <code>/api/health</code> (15 s interval); <code>depends_on: neo4j (service_healthy)</code>; <code>restart: unless-stopped</code>; all Phase 2 variables injectable (defaults off/empty)</td></tr>
+    </table>
+    <p class="muted">The <code>.dockerignore</code> (V1.1) reduces the build context from ~500 MB (node_modules) to ~2 KB — full build ≈ 7 min instead of the &gt;30 min observed.</p>
+
+    <h3>8.2 Helm chart <code>helm/clearnet</code> (v2.0.0 · appVersion 1.2.0)</h3>
+    <table>
+      <tr><th>Resource</th><th>Characteristics</th></tr>
+      <tr><td class="mono">backend-deployment</td><td>2 replicas, ConfigMap (NODE_ENV, NEO4J_URI bolt://&lt;name&gt;-neo4j:7687, flags, throttling) + JWT_SECRET inline + NEO4J_PASSWORD via secret; startup/readiness/liveness probes; resources 250m/256Mi → 1 CPU/512Mi</td></tr>
+      <tr><td class="mono">backend-hpa</td><td>autoscaling/v2, 2 → 5 replicas @ 70 % CPU (can be enabled)</td></tr>
+      <tr><td class="mono">backend-ingress</td><td>nginx, <code>proxy-body-size 8m</code>, host <code>clearnet.local</code>, optional TLS</td></tr>
+      <tr><td class="mono">backend-service</td><td>ClusterIP :80 → http (3000)</td></tr>
+      <tr><td class="mono">neo4j-statefulset</td><td>1 replica, auth via secret, heap 256/512 Mi, readiness tcpSocket bolt (30 s delay), PVC 10 Gi (volumeClaimTemplates)</td></tr>
+      <tr><td class="mono">neo4j-service</td><td>Headless (ClusterIP None), 7474 + 7687</td></tr>
+      <tr><td class="mono">blockchain-deployment/-service</td><td>Optional Hardhat devnet (<code>blockchain.enabled=false</code> by default), port 8545</td></tr>
+    </table>
+    <div class="callout warn">
+      <b>Discrepancy found during the project audit:</b> the backend Helm probes target <code>/health</code> while the
+      global <code>/api</code> prefix places the health route at <code>/api/health</code> (the compose one, on the other hand, is correct).
+      To be fixed in <code>backend-deployment.yaml</code> before any real Kubernetes deployment. Minor version discrepancy:
+      the Helm devnet pins <code>hardhat@2.19.4</code> while the repo uses <code>^2.22.2</code>.
+    </div>
+
+    <h3>8.3 Validation scripts</h3>
+    <table>
+      <tr><th>Script</th><th>Function</th></tr>
+      <tr><td class="mono">infrastructure/test-e2e.sh · test-e2e.ps1</td><td>Docker E2E in 7 steps: build → wait for <code>/api/health</code> (≤5 min) → 2 registrations → login+token → transaction → history (recipient = bob) → 401 (wrong password) + 429 (login rate-limit) → teardown <code>down -v</code></td></tr>
+      <tr><td class="mono">scripts/validate-all.sh · validate-all.ps1</td><td>Global validation: Step 1 backend (<code>npm ci</code> → <code>nest build</code> → jest) · Step 2 blockchain (<code>npm ci</code> → <code>hardhat compile</code> → <code>hardhat test</code>) · Step 3 mobile (<code>tsc --noEmit</code>, skippable) · Step 4 Docker E2E (skippable) — OK/KO aggregate, non-zero exit on failure</td></tr>
+      <tr><td class="mono">scripts/seed-demo.sh</td><td>Partner demo seed via <code>POST /api/demo/seed</code> (X-Demo-Key) — idempotent</td></tr>
+    </table>
+  </section>
+
+  <!-- ============ 9. SECTOR EXTENSION ============ -->
+  <section>
+    <h2><span class="num">9</span> Sector extension — Maritime / Spatial / Biotech</h2>
+    <p><b>Strictly incremental</b> extension (V1.1): the 12 legacy sectors are kept identically
+    (<code>LEGACY_INDUSTRIES</code>), 3 verticals added at the end (<code>EXTENSION_INDUSTRIES</code>, “v1.1” status),
+    no existing flow altered — Docker E2E kept 9/9 by construction.</p>
+    <table>
+      <tr><th>Sector (code)</th><th>Label</th><th>Group</th><th>Version</th><th>Description</th></tr>
+      <tr><td class="mono">Maritime</td><td>Maritime &amp; Transport</td><td>logistics</td><td>v1.1</td><td>Maritime, port and intermodal transport logistics</td></tr>
+      <tr><td class="mono">Spatial</td><td>Aerospace &amp; Spatial</td><td>spatial</td><td>v1.1</td><td>Satellites, launchers and space services</td></tr>
+      <tr><td class="mono">Biotech</td><td>Biotechnology &amp; Pharma</td><td>services</td><td>v1.1</td><td>Biotech, medical devices and the pharmaceutical industry</td></tr>
+    </table>
+    <p class="muted">Files: <code>src/company/company.entity.ts</code> (enum, 15-entry catalog, <code>isIndustry</code> guardrails), DTO, Cypher service <code>:Company</code>, controllers <code>/api/companies</code> + <code>/api/industries</code>. Tests: <code>company.entity.spec</code> + <code>companies.service.spec</code>. No mandatory env variable; <code>ORACLE_*</code> variables documented but not consumed (YAGNI), vertical oracle contract defined in chapter 5 of the deliverable (endpoint <code>POST /api/companies/:id/oracle/:verticale</code>, enrichment prefixed <code>oracle_*</code>, graceful degradation).</p>
+  </section>
+
+  <!-- ============ 10. PHASE 2 ============ -->
+  <section>
+    <h2><span class="num">10</span> Phase 2 — Production hardening</h2>
+    <div class="grid">
+      <div class="card"><span class="name">ITAR/OFAC compliance</span><span class="tech">NestJS · ITAR_ENABLED (off)</span><p class="desc">Embedded list (3 test entities) + CSV (<code>OFAC_CSV_PATH</code>, lowercase line matching) + external API (2.5 s timeout). Allowed countries US/FR/UK/DE/IT/JP/AU; restricted sectors Defense/Spatial. <code>ItarGuard</code>/<code>OfacGuard</code> guards no-op if disabled.</p></div>
+      <div class="card"><span class="name">Sectoral oracles</span><span class="tech">ORACLES_ENABLED (off)</span><p class="desc">Stormglass (demurrage, thresholds 2.5/1.2 m → 5/3/1 days, 3-day fallback) · Space-Track (launch window, 60-day fallback) · ClinicalTrials.gov (milestone, fallback true). Timeout <code>ORACLE_TIMEOUT_MS</code>.</p></div>
+      <div class="card"><span class="name">ZK Groth16 proofs</span><span class="tech">ZK_ENABLED (off)</span><p class="desc">Circuit <code>transaction.circom</code> (Poseidon), snarkjs fullProve, public signals <code>[maxAmount, commitment]</code>; on-chain verification via <code>VERIFIER_ADDRESS</code> or off-chain; <code>settleWithProof</code> hook in <code>CompensationEngine</code>.</p></div>
+      <div class="card"><span class="name">Scale &amp; K8s</span><span class="tech">Helm v2.0.0</span><p class="desc">Global chart: HPA 2→5 @70 % CPU, nginx Ingress, Neo4j StatefulSet + 10 Gi PVC, optional Hardhat devnet. Monitoring: every activation/degradation is logged (warn on fallbacks).</p></div>
+    </div>
+    <div class="callout ok">
+      <b>Complementary graph:</b> <code>GraphService.computeUrgency()</code> derives the compensation cycle
+      urgency factor from maritime demurrage (<code>demurrageDays &gt; 3 → high</code>, <code>hint</code> field)
+      — used when oracles are active.
+    </div>
+
+    <h3>10.1 Controlled activation (recommended order, PHASE2_DEPLOYMENT.md §5)</h3>
+    <ol>
+      <li><b>API keys</b>: <code>STORMGLASS_API_KEY</code>, <code>SPACE_TRACK_*</code>, <code>OFAC_API_KEY</code> → check <code>source:"stormglass"</code> on <code>/api/oracles/demurrage</code>.</li>
+      <li><b>Country/sector data</b>: Neo4j migration <code>MATCH (u:User) SET u.country='FR', u.industry='SupplyChain'</code> (otherwise ITAR/OFAC ineffective on V1.1 profiles).</li>
+      <li><b>ITAR/OFAC</b>: <code>ITAR_ENABLED=true</code> + CSV → Defense transactions to forbidden country → 400/403.</li>
+      <li><b>ZK</b>: artifacts <code>generate-zk-keys.sh</code> → deploy Verifier → <code>setZkSettings(verifier, true, cap)</code> → <code>ZK_ENABLED=true</code> + <code>VERIFIER_ADDRESS</code> → proof + on-chain validation.</li>
+      <li><b>Scale</b>: chart + <code>backend.autoscaling.enabled</code> → <code>kubectl top pods</code>.</li>
+    </ol>
+    <p class="muted">Non-regression: flags off → exact V1.1 behavior (tests runInBand + build then smoke with flags on).</p>
+  </section>
+
+  <!-- ============ 11. SEPOLIA ============ -->
+  <section>
+    <h2><span class="num">11</span> On-chain bridge deployment on Sepolia</h2>
+    <p>V1.2 — complete operational procedure (<code>PONT_SEPOLIA_DEPLOYMENT.md</code>), reversible
+    (<code>ONCHAIN_ENABLED=false</code> restores 100% off-chain operation).</p>
+    <table>
+      <tr><th>Step</th><th>Command / Action</th><th>Verification</th></tr>
+      <tr><td class="mono">1. Prerequisites</td><td>Sepolia wallet with test ETH (faucet), Alchemy/Infura RPC, Etherscan key</td><td>Balance ≥ 0.05 ETH (otherwise rejected before deploy)</td></tr>
+      <tr><td class="mono">2. Deployment</td><td class="mono">npm run deploy:sepolia</td><td><code>deployments/sepolia.json</code> (chainId 11155111, addresses, deployer, timestamp)</td></tr>
+      <tr><td class="mono">3. Verification</td><td class="mono">npm run verify:sepolia</td><td>Published bytecode = source (Etherscan)</td></tr>
+      <tr><td class="mono">4. Bridge activation</td><td><code>ONCHAIN_ENABLED=true</code> + RPC + <code>BLOCKCHAIN_PRIVATE_KEY</code> (signer = engine admin) + addresses</td><td><code>GET /api/blockchain/status</code> → <code>{enabled:true, network:{chainId:"11155111",name:"sepolia"}, …, zk:{…}}</code></td></tr>
+      <tr><td class="mono">5. Network E2E</td><td class="mono">npm run validate:sepolia</td><td>mint 500 CLRN Alice/Bob → positions +500/−500 → settle 500 → net 0/0 ✔</td></tr>
+      <tr><td class="mono">6. ZK gate (optional)</td><td>Artifacts, Verifier deployment, <code>configureZk</code> — via backend <code>getNetPosition</code>/<code>settleWithProof</code>/<code>configureZk</code></td><td>Settlements go through <code>settleWithProof</code> (proof generated by <code>ZkProofService</code>)</td></tr>
+    </table>
+    <div class="callout">
+      <b>Operational register (§8 of the deliverable)</b>: token and engine addresses, settlement
+      transaction hash, bridge status — to be filled in during the real deployment (no real key must enter the project).
+    </div>
+  </section>
+
+  <!-- ============ 12. BILLING & PRICING (V1.4 → V1.5) ============ -->
+  <section>
+    <h2><span class="num">12</span> Billing &amp; Pricing (V1.4 → V1.5)</h2>
+    <p><b>V1.4</b> laid the Stripe foundation (hosted checkout, signed webhook + IP allowlist,
+    freemium quotas, 80% Slack alert); <b>V1.5 Pricing</b> replaces the
+    “single Pro” model with a <b>4-tier grid</b> (implemented and tested —
+    30/30 tests, build ✅):</p>
+    <table>
+      <tr><th>Tier</th><th>Operations / month</th><th>Commission</th><th>Monthly price</th><th>Stripe Price ID</th></tr>
+      <tr><td><b>Free</b></td><td>15 (limited)</td><td>2.0%</td><td>0 €</td><td>— (no payment)</td></tr>
+      <tr><td><b>Essential</b></td><td>50</td><td>1.5%</td><td>99 €</td><td class="mono">price_essential_xxx</td></tr>
+      <tr><td><b>Pro</b></td><td>500</td><td>1.2%</td><td>499 €</td><td class="mono">price_pro_xxx</td></tr>
+      <tr><td><b>Enterprise</b></td><td>Unlimited</td><td>0.9%</td><td>1 999 €</td><td class="mono">price_enterprise_xxx</td></tr>
+    </table>
+    <p><b>Golden rule</b>: beyond 15 transactions/month (UTC calendar month), the API
+    returns <code>402 Payment Required</code> (<code>BILLING_QUOTA_EXCEEDED</code>)
+    with an invitation to upgrade to the Essential tier. Essential (50) and Pro (500) are
+    also capped; Enterprise is unlimited.</p>
+    <ul>
+      <li><b>Centralized grid</b>: <code>clearnet-backend/src/billing/pricing.ts</code> (quotas, commissions, Price IDs, webhook mapping).</li>
+      <li><b>Endpoints</b>: <code>POST /api/billing/create-checkout { tier }</code> (default PRO); <code>GET /api/billing/status</code> (quotaUsed/quotaMax, <code>null</code> = unlimited); <code>POST /api/webhooks/stripe</code> (tier resolved by Price ID → <code>metadata.tier</code> fallback → default PRO).</li>
+      <li><b>Commission</b>: the tier's <code>feeRate</code> stamped on each <code>Transaction</code> node (automated deduction: P2).</li>
+      <li><b>Config</b>: <code>STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE</code>, <code>BILLING_FREE_QUOTA=15</code>; Helm (configmap + values) updated; details in <code>TARIFICATION_V1_5.md</code>.</li>
+    </ul>
+  </section>
+
+  <!-- ============ 13. VALIDATION ============ -->
+  <section>
+    <h2><span class="num">13</span> Validation results</h2>
+    <p>All the checks below were <b>actually executed</b> on the development machine (Windows, Node 24, Docker Desktop / WSL2) and documented in the deliverables:</p>
+    <table>
+      <tr><th>Component</th><th>Check</th><th>Command</th><th>Result</th></tr>
+      <tr><td>Docker E2E</td><td>Full walkthrough (V1.1, 07/08/2026)</td><td class="mono">.\infrastructure\test-e2e.ps1</td><td><span class="ok">✔ 9/9</span> (health 5 min · register ×2 · login · transaction · history=1 · dest=bob · 401 · 429) — then teardown</td></tr>
+      <tr><td>Backend</td><td>Installation</td><td class="mono">npm install</td><td><span class="ok">✔ 627 packages</span></td></tr>
+      <tr><td>Backend</td><td>TypeScript compilation</td><td class="mono">npm run build</td><td><span class="ok">✔ Exit 0</span></td></tr>
+      <tr><td>Backend</td><td>Unit tests</td><td class="mono">npm test (jest, runInBand)</td><td><span class="ok">✔ 11/11</span> — 3 suites (app · companies.service · company.entity)</td></tr>
+      <tr><td>Backend</td><td>Sector extension smoke (stack rebuilt, Neo4j 5.26)</td><td class="mono">curl /api/industries…, /api/companies…</td><td><span class="ok">✔ 15 checks</span> (15-entry catalog, stats 12+3, 400 enum, 401 without token, sector filters, counters Maritime=2 Spatial=2 Biotech=0)</td></tr>
+      <tr><td>Backend</td><td>Partner demo</td><td class="mono">/api/demo/status · /api/demo/seed</td><td><span class="ok">✔ 401 without key · 200 with key</span> (users:3, transactions:3, idempotence)</td></tr>
+      <tr><td>Blockchain</td><td>Compilation (solc 0.8.19)</td><td class="mono">npx hardhat compile</td><td><span class="ok">✔ Exit 0</span></td></tr>
+      <tr><td>Blockchain</td><td>Contract tests</td><td class="mono">npx hardhat test</td><td><span class="ok">✔ 2/2</span> (token mint/burn · netting +100/−100, settle 50)</td></tr>
+      <tr><td>Blockchain</td><td>Local node + deployment</td><td class="mono">hardhat node + deploy.ts</td><td><span class="ok">✔ token + engine deployed</span></td></tr>
+      <tr><td>Mobile</td><td>Installation</td><td class="mono">npm install</td><td><span class="ok">✔ 1123 packages</span></td></tr>
+      <tr><td>Mobile</td><td>Typecheck</td><td class="mono">npx tsc --noEmit</td><td><span class="ok">✔ 0 errors</span></td></tr>
+      <tr><td>Mobile</td><td>Web demo + seed login</td><td class="mono">npx expo start --web</td><td><span class="ok">✔ alice/bob/carol + clearnet-demo</span></td></tr>
+      <tr><td>Mobile</td><td>SDK 49 consistency</td><td class="mono">npx expo install --check</td><td><span class="ok">✔ up to date</span></td></tr>
+      <tr><td>Local bridge</td><td>Fire-and-forget on-chain settlement</td><td class="mono">BLOCKCHAIN_ENABLED=true + transaction</td><td><span class="ok">✔ « Position updated 0x… (X CLRN) — tx 0x… »</span></td></tr>
+      <tr><td>Phase 2</td><td>Oracles (flag off)</td><td class="mono">GET /api/oracles/demurrage</td><td><span class="ok">✔ 3-day fallback</span></td></tr>
+    </table>
+    <div class="callout warn">
+      <b>Not executed locally (development environment):</b> ZK artifact generation
+      (<code>circom</code>/<code>snarkjs</code> absent from this Windows machine — to be done under WSL2, procedure
+      <code>PHASE2_DEPLOYMENT.md</code> §4), <code>helm lint</code>/<code>helm template</code> (Helm absent — to be run in CI),
+      and actual execution of the Sepolia deployment (scripts provided and documented — to be launched at deployment time).
+      However: Docker E2E 9/9, build, tests, smokes and partner demo were <b>executed under real conditions</b>.
+    </div>
+  </section>
+
+  <!-- ============ 14. ATTENTION POINTS ============ -->
+  <section>
+    <h2><span class="num">14</span> Points of attention &amp; limitations</h2>
+    <table>
+      <tr><th>#</th><th>Point</th><th>Recommendation</th></tr>
+      <tr><td>1</td><td>Hardcoded secrets by default (<code>JWT_SECRET=change-me-in-production</code>, Neo4j password, <code>DEMO_API_KEY</code>)</td><td>Replace in the <code>.env</code> files before any exposure; secret manager in prod</td></tr>
+      <tr><td>2</td><td>Neo4j on a local network without TLS or hardened auth</td><td>Restrict ports to trusted interfaces; managed Neo4j + HTTPS in prod</td></tr>
+      <tr><td>3</td><td>Fire-and-forget on-chain bridge: an off-chain transaction can remain without on-chain settlement (silent failure except <code>onchainStatus</code>)</td><td>Reconciliation queue / retry and monitoring of the <code>onchainStatus</code> field</td></tr>
+      <tr><td>4</td><td>Helm probes on <code>/health</code> while the real route is <code>/api/health</code></td><td><b>✔ Fixed</b> — <code>backend-deployment.yaml</code> (startup/readiness/liveness → <code>/api/health</code>, checked before K8s deployment)</td></tr>
+      <tr><td>5</td><td>Helm devnet pinned to <code>hardhat@2.19.4</code> vs <code>^2.22.2</code> in the repo</td><td>Align the versions</td></tr>
+      <tr><td>6</td><td>Global rate-limiting without specific login lockout (IP counters)</td><td>Login lockout policy (counters per IP/email)</td></tr>
+      <tr><td>7</td><td>No role management (any authenticated user can do everything; mint reserved to the contract owner)</td><td>Plan an application-level <code>admin</code> role for issuance</td></tr>
+      <tr><td>8</td><td>V1.1 profiles without <code>country</code>/<code>industry</code> → ITAR/OFAC checks ineffective until they are filled in</td><td>Neo4j migration before flag activation</td></tr>
+      <tr><td>9</td><td><code>contracts/Verifier.sol</code> generated by snarkjs (overwritten at each run)</td><td>Do not edit; trace the zkey fingerprint in the register</td></tr>
+      <tr><td>10</td><td>Oracles with graceful degradation (static fallbacks) and limited embedded OFAC list (3 test entities)</td><td>Certified feeds (complete OFAC list via CSV/API) before production</td></tr>
+      <tr><td>11</td><td>ZK circuit in micro-CLRN (×1e6) vs ledger in wei (×1e18) — equality not verified by the proof</td><td>Next-phase refinement; sufficient for testnet validation</td></tr>
+      <tr><td>12</td><td>Mobile screen without a navigation stack (simple state management)</td><td>React Navigation for a multi-screen app</td></tr>
+      <tr><td>13</td><td>No CI/CD or versioned image registry in the project</td><td>GitHub Actions (build+test per component, helm lint/template on Linux), GHCR</td></tr>
+    </table>
+  </section>
+
+  <!-- ============ 15. NEXT STEPS ============ -->
+  <section>
+    <h2><span class="num">15</span> Recommended next steps</h2>
+    <ol>
+      <li><b>Actually deploy the Sepolia bridge</b> (deploy → verify → validate) and complete the operational register (<code>PONT_SEPOLIA_DEPLOYMENT.md</code> §8); fix the Helm probes (<code>/api/health</code>).</li>
+      <li><b>Generate the ZK artifacts</b> (WSL2), deploy <code>Verifier.sol</code>, enable <code>ZK_ENABLED=true</code> + <code>VERIFIER_ADDRESS</code> (<code>PHASE2_DEPLOYMENT.md</code> §4–5).</li>
+      <li><b>Enable compliance</b>: Neo4j migration (country/industry), complete OFAC list, review of ITAR countries before <code>ITAR_ENABLED=true</code>.</li>
+      <li><b>Oracles</b>: put the real Stormglass/Space-Track keys, validate the demurrage thresholds with operations.</li>
+      <li><s><b>CI/CD</b>: GitHub Actions (build + test per component, <code>helm lint</code> + <code>helm template</code>), GHCR registry, <code>git init</code> + <code>main</code>/<code>develop</code> branches + tags v1.1 → v1.2.</s> <b>✔ Done</b> — <code>.github/workflows/ci-cd.yml</code> (7 jobs, gitleaks, APK release + verification).</li>
+      <li><b>Billing V1.5 production rollout</b>: create the 3 Stripe Prices (Essential/Pro/Enterprise), inject the Price IDs + keys (existingSecret), <code>BILLING_ENABLED=true</code>, validate the webhook in test mode.</li>
+      <li><b>Real deployment</b>: kind/EKS + Helm chart, contract audit, managed Neo4j, secret manager password, on-chain bridge reconciliation.</li>
+      <li><b>Functional</b>: mobile React Navigation, application roles, multi-user organizations, transaction states (created/settled/failed).</li>
+    </ol>
+  </section>
+
+  <!-- ============ 16. EXECUTION ============ -->
+  <section>
+    <h2><span class="num">16</span> Execution instructions</h2>
+
+    <h3>Prerequisites (identical on Mac &amp; Windows)</h3>
+    <ul>
+      <li><b>Node.js 20 LTS</b> (18+ is enough) — nodejs.org</li>
+      <li><b>Docker Desktop</b> — docker.com/products/docker-desktop</li>
+      <li>Mobile only: Xcode (iOS) or Android Studio + emulator</li>
+      <li>Windows: PowerShell; if script execution is blocked: <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></li>
+    </ul>
+
+    <h3>Step 1 — Infrastructure (Neo4j + backend)</h3>
+    <pre><span class="cmd">Copy-Item infrastructure\.env.example infrastructure\.env</span>  <span class="comment"># Mac : cp infrastructure/.env.example infrastructure/.env</span>
+<span class="cmd">docker compose -f infrastructure/docker-compose.yml up -d --build</span>
+<span class="comment"># Check: http://localhost:3000/api/health → {"status":"ok","neo4j":"connected"}</span></pre>
+
+    <h3>Step 2 — Backend (development outside Docker)</h3>
+    <pre><span class="cmd">cd clearnet-backend && Copy-Item .env.example .env</span>  <span class="comment"># Mac : cp .env.example .env</span>
+<span class="cmd">npm install</span>
+<span class="cmd">npm run start:dev</span>   <span class="comment"># http://localhost:3000/api</span>
+<span class="cmd">npm test</span>            <span class="comment"># jest — 11/11</span></pre>
+
+    <h3>Step 3 — Blockchain</h3>
+    <pre><span class="cmd">cd clearnet-blockchain && npm install</span>
+<span class="cmd">npx hardhat test</span>
+<span class="cmd">npx hardhat node</span>                          <span class="comment"># terminal 1</span>
+<span class="cmd">npx hardhat run scripts/deploy.ts --network localhost</span>   <span class="comment"># terminal 2 — note the addresses</span></pre>
+
+    <h3>Step 4 — Mobile</h3>
+    <pre><span class="cmd">cd clearnet-mobile && npm install</span>
+<span class="cmd">npx expo start</span>    <span class="comment"># then press « a » (Android) or « i » (iOS)</span></pre>
+    <p class="muted">Android emulator: API reached automatically via <code>10.0.2.2:3000</code>. Physical device: <code>.env</code> with <code>EXPO_PUBLIC_API_URL=http://&lt;IP-LAN&gt;:3000/api</code>.</p>
+
+    <h3>Step 5 — Partner demo (30 min)</h3>
+    <pre><span class="cmd">./scripts/seed-demo.sh</span>   <span class="comment"># Windows : Invoke-RestMethod -Uri http://localhost:3000/api/demo/seed -Method Post -Headers @{ "X-Demo-Key" = "demo-secret-change-me" }</span>
+<span class="comment"># Mobile app: « partner demo » mode → Alice → send to bob@clearnet.io → log back in as Bob</span></pre>
+
+    <h3>Step 6 — Global validation</h3>
+    <pre><span class="cmd">.\scripts\validate-all.ps1</span>            <span class="comment"># Windows · bash scripts/validate-all.sh on Mac</span>
+<span class="cmd">.\infrastructure\test-e2e.ps1</span>         <span class="comment"># Docker E2E 9/9 (teardown included)</span></pre>
+
+    <h3>Step 7 — On-chain bridge (optional) and Phase 2</h3>
+    <pre><span class="comment"># Local bridge: in clearnet-backend/.env</span>
+<span class="comment">#   ONCHAIN_ENABLED=true · BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545 · BLOCKCHAIN_PRIVATE_KEY=0xac0974… (hardhat key #0, dev)</span>
+<span class="comment">#   CLRN_TOKEN_ADDRESS=&lt;address&gt; · COMPENSATION_ENGINE_ADDRESS=&lt;address&gt;</span>
+<span class="cmd">npm run start:dev</span>   <span class="comment"># logs: « Position updated 0x… (X CLRN) — tx 0x… »</span>
+<span class="comment"># Sepolia: <code>npm run deploy:sepolia</code> → verify → validate (see §11)</span>
+<span class="comment"># ZK: bash scripts/generate-zk-keys.sh (WSL2) → artifacts + Verifier.sol</span>
+<span class="comment"># Cluster: helm install clearnet infrastructure/helm/clearnet -n clearnet --create-namespace</span></pre>
+  </section>
+
+  <!-- ============ 17. V1.5 ============ -->
+  <section>
+    <h2><span class="num">17</span> V1.5 — Delivered planning (i18n · real-time FX · ZK batch · sync)</h2>
+    <p><b>V1.5 focus</b>: internationalization (i18n in 4 languages, multi-currency EUR/USD/GBP/CHF,
+    real-time converter), industrialized ZK foundation (Poseidon batch netting, Phase 2 ceremony,
+    L2 deployment) and on-chain → Neo4j synchronization. The six plans are <b>delivered, ready to
+    execute, off by default</b> — no change in V1.4 behavior as long as the flags
+    remain inactive.</p>
+    <table>
+      <tr><th>Document</th><th>Scope</th><th>Flag</th><th>Status</th></tr>
+      <tr><td class="mono">I18N_CURRENCY_UPGRADE.md</td><td>i18n 4 languages, multi-currency (Chainlink + static oracles), real-time converter (REST <code>/api/fx/*</code> + WS <code>/fx</code>)</td><td class="mono">I18N_ENABLED · MULTI_CURRENCY_ENABLED</td><td>✅ 3-day plan</td></tr>
+      <tr><td class="mono">RECOMMANDATION_DEPLOIEMENT_L2.md</td><td>ZK foundation on <b>Polygon zkEVM</b> (batch proofs ≪ $0.01/tx — Arbitrum Orbit ≠ ZK, corrected)</td><td>— (deployment)</td><td>✅ Validated reco</td></tr>
+      <tr><td class="mono">CEREMONIE_TRUSTED_SETUP.md</td><td>Phase 2 ceremony (PPoT + web snarkjs SRI/air-gap, 8–12 contributors, toxic waste)</td><td>circuit to freeze</td><td>✅ 3 weeks</td></tr>
+      <tr><td class="mono">SYNC_ONCHAIN_NEO4J.md</td><td>On-chain indexer → Neo4j: chain-dependent finality, soft reorgs, atomic checkpoint</td><td class="mono">SYNC_ENABLED</td><td>✅ Architecture</td></tr>
+      <tr><td class="mono">RECONCILIATION_WORKER_INTEGRATION.md</td><td>BullMQ <code>reconciliation</code> worker: hash-based correlation, PENDING/SUCCESS/REORG_ROLLBACK statuses, metrics</td><td class="mono">RECONCILIATION_ENABLED</td><td>✅ Code + spec</td></tr>
+      <tr><td class="mono">ZK_BATCH_INTEGRATION.md</td><td>Circuit <code>ClearNetBatchNetting.circom</code> (Poseidon), <code>VerifierBatch.sol</code>, <code>ZkBatchService</code>, <code>settleBatchWithProof</code></td><td class="mono">ZK_BATCH_ENABLED</td><td>✅ Code + tests</td></tr>
+    </table>
+    <p class="muted"><b>Target V1.5 test suite</b>: 30 + 4 (reconciliation) + 4 (zkbatch) = 38
+    backend; contracts 5/5 intact + VerifierBatch.sol; Maestro flows unchanged (stable testIDs).
+    Each flag independent, reversible, provisioned via .env.example/Helm.
+    <br><b>Cross-review</b>: <code>REVUE_V1_5_VIGILANCE.md</code> — 6 points of vigilance
+    (HKDF keyring, circom fix, batch×reconciliation mapping, multi-source oracle, gas
+    benchmarks, freeze gate) + S1→S4 roadmap + tracking matrix.</p>
+  </section>
+
+  <footer>
+    ClearNet v1.2.0 · Technical report generated on 09/08/2026 from the actual state of the project (≈ 122 tracked files,
+    build outputs excluded) · Sources: README · README-DEMO · CLEARNET-V1.1-REMEDIATION · SECTOR_EXTENSION ·
+    PHASE2_RESPONSE/DEPLOYMENT · PONT_SEPOLIA_RESPONSE/DEPLOYMENT + code audit (backend · blockchain · mobile · infra · scripts)
+  </footer>
+
+</div>
+</body>
+</html>

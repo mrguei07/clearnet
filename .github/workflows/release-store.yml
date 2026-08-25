@@ -1,0 +1,64 @@
+# ---------------------------------------------------------------------------
+# ClearNet — Build & submit store (EAS Build cloud)
+#
+# Produit l'AAB (Play) et l'IPA (App Store) via Expo EAS Build, sans toolchain
+# locale. Prérequis : un secret GitHub `EXPO_TOKEN` (token d'accès Expo) et,
+# pour iOS, les credentials Apple configurés sur le compte Expo.
+#
+#   - Déclenchement manuel (workflow_dispatch) ou tag v*.
+#   - `EXPO_PUBLIC_API_URL` : définir la variable GitHub Actions (ou laisser
+#     le défaut https://api.clearnet.fr/api).
+# ---------------------------------------------------------------------------
+name: release-store
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-android-aab:
+    name: Build AAB (Play Store)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: clearnet-mobile/package-lock.json
+      - name: Install dependencies
+        working-directory: clearnet-mobile
+        run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Build AAB (EAS)
+        working-directory: clearnet-mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://api.clearnet.fr/api' }}
+        run: eas build --platform android --profile production --non-interactive --no-wait
+
+  build-ios-ipa:
+    name: Build IPA (App Store)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: clearnet-mobile/package-lock.json
+      - name: Install dependencies
+        working-directory: clearnet-mobile
+        run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Build IPA (EAS)
+        working-directory: clearnet-mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://api.clearnet.fr/api' }}
+        run: eas build --platform ios --profile production --non-interactive --no-wait

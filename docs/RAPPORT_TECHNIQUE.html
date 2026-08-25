@@ -177,7 +177,9 @@
   <a href="#s10">10. Configuration</a>
   <a href="#s11">11. Validation</a>
   <a href="#s12">12. Déploiement</a>
-  <a href="#s13">13. Limites & perspectives</a>
+  <a href="#s13">13. Facturation &amp; Pricing (V1.4 → V1.5)</a>
+  <a href="#s14">14. Limites & perspectives</a>
+  <a href="#s15">15. V1.5 — planification livrée</a>
 </nav>
 
 <main>
@@ -715,6 +717,13 @@ d'échelle est un raffinement de phase suivante (acceptable sur testnet).</p>
   <tr><td><code>QUEUE_ENABLED</code> · <code>REDIS_HOST</code> · <code>REDIS_PORT</code> · <code>REDIS_PASSWORD</code></td><td>false · redis · 6379 · vide</td><td>File BullMQ (évaluation dynamique 3.1 ; câblage au démarrage)</td></tr>
   <tr><td><code>QUEUE_ATTEMPTS</code> · <code>QUEUE_BACKOFF_MS</code></td><td>5 · 5000</td><td>Retries exponentielles des règlements</td></tr>
   <tr><td><code>SLACK_WEBHOOK_URL</code></td><td>vide</td><td>Notification échecs définitifs (3.3, optionnel)</td></tr>
+  <tr><td><code>BILLING_ENABLED</code></td><td>false</td><td>Facturation Stripe (off par défaut)</td></tr>
+  <tr><td><code>STRIPE_SECRET_KEY</code> · <code>STRIPE_WEBHOOK_SECRET</code></td><td>vide</td><td>Clés Stripe (⚠️ secrets, existingSecret en prod)</td></tr>
+  <tr><td><code>STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE</code></td><td>price_*_default</td><td>Price IDs des 3 niveaux payants (V1.5)</td></tr>
+  <tr><td><code>BILLING_FREE_QUOTA</code></td><td>15</td><td>Plafond Free (mois civil UTC) → 402 au-delà</td></tr>
+  <tr><td><code>BILLING_SUCCESS_URL</code> · <code>BILLING_CANCEL_URL</code></td><td>clearnet://billing(?ok=1)</td><td>Retour checkout mobile</td></tr>
+  <tr><td><code>STRIPE_WEBHOOK_IPS</code></td><td>vide</td><td>Repli CSV allowlist webhooks (fail-closed)</td></tr>
+  <tr><td><code>EARLY_ADOPTER_ENABLED</code></td><td>false</td><td>Exemption quota des early adopters</td></tr>
 </table>
 
 <h3>10.2 Blockchain (<code>clearnet-blockchain/.env</code>)</h3>
@@ -788,7 +797,38 @@ se fait dans le gestionnaire de secrets.</p>
 
 <!-- ================= 13 ================= -->
 <section id="s13">
-<h2>13. Limites connues &amp; perspectives</h2>
+<h2>13. Facturation &amp; Pricing (V1.4 → V1.5)</h2>
+<p><strong>V1.4</strong> a introduit Stripe (checkout hébergé, webhook signé + IP
+allowlist fail-closed, quota freemium, alerte Slack 80 %) ; <strong>V1.5 Pricing</strong>
+remplace le « Pro unique » par une <strong>grille 4 niveaux</strong> — implémentée,
+build ✅, tests 30/30 ✅ (<code>TARIFICATION_V1_5.md</code>).</p>
+<table>
+  <tr><th>Niveau</th><th>Opérations / mois</th><th>Commission</th><th>Prix mensuel</th><th>Stripe Price ID</th></tr>
+  <tr><td><strong>Free</strong></td><td>15 (limité)</td><td>2,0 %</td><td>0 €</td><td>— (pas de paiement)</td></tr>
+  <tr><td><strong>Essentiel</strong></td><td>50</td><td>1,5 %</td><td>99 €</td><td class="mono">price_essential_xxx</td></tr>
+  <tr><td><strong>Pro</strong></td><td>500</td><td>1,2 %</td><td>499 €</td><td class="mono">price_pro_xxx</td></tr>
+  <tr><td><strong>Enterprise</strong></td><td>Illimité</td><td>0,9 %</td><td>1 999 €</td><td class="mono">price_enterprise_xxx</td></tr>
+</table>
+<ul>
+  <li><strong>Règle d'or</strong> : au-delà de 15 tx/mois (mois civil UTC), l'API renvoie
+      <code>402 Payment Required</code> (<code>BILLING_QUOTA_EXCEEDED</code>) invitant à passer à
+      l'offre Essentiel ; Essentiel (50) et Pro (500) plafonnés pareillement, Enterprise illimité.</li>
+  <li><strong>Source de vérité</strong> : <code>clearnet-backend/src/billing/pricing.ts</code>
+      (quotas, commissions, Price IDs, <code>tierFromPrice</code>). Checkout :
+      <code>POST /api/billing/create-checkout {tier}</code> (défaut PRO) ; statut :
+      <code>GET /api/billing/status</code> (<code>quotaMax: null</code> = illimité) ; webhook :
+      tier par Price ID configuré → repli <code>metadata.tier</code> → défaut PRO.</li>
+  <li><strong>Commission</strong> : <code>feeRate</code> du niveau timbré sur chaque nœud
+      <code>Transaction</code> (prélèvement automatisé : P2).</li>
+  <li><strong>Config</strong> : <code>STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE</code>,
+      <code>BILLING_FREE_QUOTA=15</code> (cf. §10) ; Helm <code>values*.yaml</code> + configmap
+      à jour. Mobile : écran Abonnement (4 niveaux, barre de quota pour tout quota fini, ∞ Enterprise).</li>
+</ul>
+</section>
+
+<!-- ================= 14 ================= -->
+<section id="s14">
+<h2>14. Limites connues &amp; perspectives</h2>
 <ul>
   <li><strong>MVP opérateur centralisé</strong> : le backend détient la clé admin du
       <code>CompensationEngine</code> — le netting est exécuté de façon déléguée, pas par un réseau de validateurs.</li>
@@ -805,6 +845,31 @@ se fait dans le gestionnaire de secrets.</p>
   <li><strong>Mobile V1.3</strong> : contrat API aligné (solde, pagination, egonet, socket.io) ;
       validation sur émulateur Android restant à exécuter (bout-en-bout réel).</li>
 </ul>
+</section>
+
+<!-- ================= 15 ================= -->
+<section id="s15">
+<h2>15. V1.5 — Planification livrée (i18n · FX temps réel · ZK batch · sync)</h2>
+<p><strong>Focus V1.5</strong> : internationalisation (i18n 4 langues, multi-devises
+EUR/USD/GBP/CHF, convertisseur temps réel), socle ZK industrialisé (batch netting Poseidon,
+cérémonie Phase 2, déploiement L2) et synchronisation on-chain → Neo4j. Les six plans sont
+<strong>livrés, prêts à exécuter, off par défaut</strong> — aucun changement de comportement V1.4
+tant que les flags restent inactifs.</p>
+<table>
+  <tr><th>Document</th><th>Périmètre</th><th>Flag d'activation</th><th>État</th></tr>
+  <tr><td><code>I18N_CURRENCY_UPGRADE.md</code></td><td>i18n backend 4 langues, multi-devises via oracles (Chainlink + statique), <strong>convertisseur temps réel</strong> (REST <code>/api/fx/*</code> + WS <code>/fx</code>), écran mobile Convertisseur</td><td><code>I18N_ENABLED</code> · <code>MULTI_CURRENCY_ENABLED</code></td><td>✅ Plan exécutable (3 j)</td></tr>
+  <tr><td><code>RECOMMANDATION_DEPLOIEMENT_L2.md</code></td><td>Socle ZK sur <strong>Polygon zkEVM</strong> (batch proofs ≪ 0,01 $/tx — Arbitrum Orbit ≠ ZK, corrigé)</td><td>— (déploiement)</td><td>✅ Reco validée</td></tr>
+  <tr><td><code>CEREMONIE_TRUSTED_SETUP.md</code></td><td>Cérémonie Phase 2 (PPoT + snarkjs web SRI/air-gap Tails, 8–12 contributeurs, destruction des déchets toxiques)</td><td>circuit <code>clearing.circom</code> (à geler)</td><td>✅ Procédure 3 sem.</td></tr>
+  <tr><td><code>SYNC_ONCHAIN_NEO4J.md</code></td><td>Indexeur on-chain → Neo4j : finalité chaîne-dépendante, reorgs soft (statuts, pas de purge), checkpoint atomique</td><td><code>SYNC_ENABLED</code></td><td>✅ Architecture + reorgPolicy</td></tr>
+  <tr><td><code>RECONCILIATION_WORKER_INTEGRATION.md</code></td><td>Worker BullMQ <code>reconciliation</code> (cron 5 min) : corrélation par <code>onchainHash</code>/<code>pendingTxHash</code>, statuts <code>PENDING/SUCCESS/REORG_ROLLBACK</code>, métriques</td><td><code>RECONCILIATION_ENABLED</code></td><td>✅ Code + diffs + spec (4 tests)</td></tr>
+  <tr><td><code>ZK_BATCH_INTEGRATION.md</code></td><td>Circuit <code>ClearNetBatchNetting.circom</code> (Poseidon), <code>VerifierBatch.sol</code>, <code>ZkBatchService</code>, <code>settleBatchWithProof</code> + <code>IZkBatchVerifier</code> (additif)</td><td><code>ZK_BATCH_ENABLED</code></td><td>✅ Code + tests (2+3+4)</td></tr>
+</table>
+<p><strong>Suite de tests cible V1.5</strong> : 30 + 4 (reconciliation) + 4 (zkbatch) = <strong>38
+backend</strong> ; contrats 5/5 intacts + <code>VerifierBatch.sol</code> ; flows Maestro inchangés.
+Chaque flag est indépendant, réversible et provisionné via <code>.env.example</code>/Helm.
+<br><strong>Revue croisée</strong> : <code>REVUE_V1_5_VIGILANCE.md</code> — 6 points de vigilance
+(keyring HKDF, correctif circom, mapping batch×réconciliation, oracle multi-source, benchmarks
+gas, gate de gel) + roadmap S1→S4 + matrice de suivi.</p>
 </section>
 
 </main>

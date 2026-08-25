@@ -78,18 +78,18 @@ spec:
             {{- end }}
           startupProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
             initialDelaySeconds: {{ .Values.backend.probes.startupDelaySeconds }}
             periodSeconds: {{ .Values.backend.probes.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
             periodSeconds: 5
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}

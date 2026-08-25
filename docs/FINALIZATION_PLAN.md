@@ -15,11 +15,12 @@ Rôle : Lead DevOps & Product Owner — Périmètre : monorepo ClearNet (backend
 | C2 | `android/` **non versionné** | Tout build CI doit refaire `expo prebuild` + patch | CI pipeline le gère (1.1) ; option versionner `android/` versionné = discussion (1.4) |
 | C3 | `mobile-ci.yml` (existant) lance `gradlew` **sans `patch-build.ps1`** → échouera sur Gradle 8 (guards `components.release`) | Faux positifs/negatifs sur PR | Aligner mobile-ci.yml (1.3, action 1) |
 | C4 | `app.json` version **1.3.0** alors que le build est « V1.4 » | Artefacts mal identifiés | Bump `version: "1.4.0"` (action 3) |
-| C5 | `app.json` `package: com.clearnet.mobile` vs `build.gradle` `applicationId "com.clearnet"` | Incohérence package à chaque prebuild ; tests `adb`/store impactés | Aligner sur `com.clearnet` partout (action 4) |
+| C5 | `app.json` `package: com.clearnet.mobile` (applicationId réel `com.clearnet.mobile` — prébuild génère le build.gradle depuis app.json) | Tests `adb`/store : utiliser `com.clearnet.mobile` | **✔ Résolu** : `validate-apk.ps1` aligné sur `com.clearnet.mobile` (am start, pidof, force-stop) — validé émulateur |
 | C6 | `usesCleartextTraffic: true` (app.json) | HTTP en clair en release | Décision consciente pour la phase pilote (LAN) ; à verrouiller en production (4.3) |
 | C7 | `SYSTEM_ALERT_WINDOW` dans le manifest | Permission sensible (overlay) | Vérifier l'usage réel et la retirer si non requise (4.3) |
 | C8 | JDK 24 dans `JAVA_HOME` système ; le build passe par un JDK 17 local | Risque régression machine/CI | Garde systématique du JDK 17 dans CI + docs (fait) |
 | C9 | Workflows existants (`ci-validation.yml`) couvrent helm+backend ; aucune release automatique | Pas d'artefact livrable automatisé | Nouveau `ci-cd.yml` (1.1) |
+| C10 | Sondes Helm sur `/health` (route réelle `/api/health`) | K8s : rollout/boot bouclés (probes KO) | **✔ Corrigé** : `backend-deployment.yaml` startup/readiness/liveness → `/api/health` (aligné docker-compose, docs) |
 
 ---
 
@@ -98,7 +99,7 @@ powershell -ExecutionPolicy Bypass -File .\validate-apk.ps1
 # Variantes : -SkipInstall (APK déjà installée), -SkipDevice (build-only), -ApkPath <autre chemin>
 ```
 
-Checks : taille ≥ 60 Mo · `apksigner verify` · appareil adb · install · `am start com.clearnet/.MainActivity` · processus vivant 5 s (pidof, repli `ps`) · **aucun** `FATAL EXCEPTION` (logcat) · splash capturé (`splash-check.png`, fond `#0b1220` + logo) · backend `/api/health` (info, non bloquant). **Testé : TOUTES LES CHECKS OK** (mode build-only, pas de device branché).
+Checks : taille ≥ 60 Mo · `apksigner verify` · appareil adb · install · `am start com.clearnet.mobile/.MainActivity` · processus vivant 5 s (pidof, repli `ps`) · **aucun** `FATAL EXCEPTION` (logcat) · splash capturé (`splash-check.png`, fond `#0b1220` + logo) · backend `/api/health` (info, non bloquant). **Testé : TOUTES LES CHECKS OK** — d'abord build-only, puis **APK signée prod sur émulateur Pixel_7a (headless)** : install, launch, processus vivant, splash, zéro FATAL EXCEPTION. Bugs corrigés au passage dans validate-apk.ps1 : package réel `com.clearnet.mobile` (au lieu de `com.clearnet`) + variable `$pid` renommée `$procPid` (read-only PS).
 
 ### 2.2. Matrice E2E métier (manuel — 20 min, émulateur + backend local)
 
@@ -156,14 +157,14 @@ Existant : `.maestro/login.yaml`, `.maestro/offline-sync.yaml` (exécutés en CI
 
 | Étape | Commande | Statut |
 |:---|:---|:---|
-| Build | `.\build-gradle.cmd` (local) ou CI `ci-cd.yml` | Fait (clearnet-v1.4.apk) |
+| Build | `.\build-gradle.cmd` (local) ou CI `ci-cd.yml` | Fait (clearnet-v1.4.apk — dernière : build `-UseInitGradle` validé, 64,4 Mo) |
 | Renommage artefact | `app-release.apk` → `clearnet-v1.4.apk` | Fait (build-apk.cmd) |
 | **Vérif signature** | `validate-apk.ps1` (apksigner) | Fait — signé **debug keystore** |
 | **Keystore de production** | `clearnet-mobile\create-release-keystore.cmd` (idempotent, retry) → `%USERPROFILE%\.clearnet-keys\clearnet-release.jks` + `keystore-password.txt` | ✅ **GÉNÉRÉ dans ce plan** (RSA 2048, 10 000 j) — **à copier dans un gestionnaire de secrets** (emplacement : `C:\Users\deral\.clearnet-keys\`) |
-| Signer en production | `zipalign -p 4 in.apk out.apk` puis `apksigner sign --ks clearnet-release.jks` | P1 (une fois le keystore transféré) |
+| **Signer en production** | `zipalign -p 4` + `apksigner sign --ks clearnet-release.jks` (+ `--ks-pass file:keystore-password.txt` — jamais le mot de passe en clair dans la commande) | ✅ **FAIT** → `clearnet-mobile\clearnet-v1.4-release-signed.apk` (65,98 Mo, cert `CN=ClearNet, OU=DevOps`) — **validée sur émulateur Pixel_7a : TOUTES LES CHECKS OK** |
 | Backup | Keystore + mots de passe dans un gestionnaire de secrets (1Password/Keepass), jamais dans le repo | P0 (fichiers déjà hors repo, `.gitignore` renforcé : `*.jks`, `*.apk`) |
 
-> **⚠️ Règle absolue** : le debug keystore sert pour les early adopters (P0) ; un keystore dédié est requis AVANT tout déploiement public (Play Store ou distribution ouverte).
+> **✅ À jour** : l'APK distribuée aux early adopters est désormais **signée avec le keystore de production** (`clearnet-v1.4-release-signed.apk`) ; le keystore original (`%USERPROFILE%\.clearnet-keys\`) reste la seule source de vérité — à sauvegarder dans un gestionnaire de secrets AVANT toute distribution publique.
 
 ### 3.2. Documentation commerciale (checklist de production)
 

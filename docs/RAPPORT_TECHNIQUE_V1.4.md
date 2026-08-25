@@ -14,6 +14,7 @@
 5. [Validation & qualité](#5-validation--qualité)
 6. [Rétrocompatibilité V1.3](#6-rétrocompatibilité-v13)
 7. [Prochaines étapes](#7-prochaines-étapes)
+8. [V1.5 — Planification livrée](#8-v15--planification-livrée)
 
 ### Annexes du jour (lots J3–J13)
 
@@ -107,15 +108,21 @@ La campagne V1.4 cible les 5 verrous commerciaux (admin DLQ, facturation Stripe,
 
 ### `BillingModule` (conditionnel à `BILLING_ENABLED`)
 
-- **`billing.service.ts`** : `assertEnabled()` → 503 hors flag (**off par défaut**, règle d'or) ; quota FREE via
-  `countMonth` (transactions **SENT du mois civil UTC** uniquement, Cypher Neo4j) ; `applySubscription` écrit
-  `subscriptionTier` + `stripeCustomerId` sur le nœud User (**idempotent**) ; mapping webhook
-  `deleted` → FREE, métadonnée `tier` enterprise → ENTERPRISE. Quota vérifié au checkout (`applySubscription`
-  hors ligne → `CheckoutServicePaymentUnavailable`, retry webhook Stripe).
-- **`billing.controller.ts`** : `POST /api/billing/checkout` (session hébergée) + `GET /api/billing/tier`.
+- **`pricing.ts`** (V1.5 Pricing) : grille 4 niveaux centralisée — Free (15 tx/mois, 2,0 %),
+  Essentiel (50, 1,5 %, 99 €), Pro (500, 1,2 %, 499 €), Enterprise (illimité, 0,9 %, 1 999 €) ;
+  quotas, commissions, Price IDs (`STRIPE_PRICE_ESSENTIAL/PRO/ENTERPRISE`) et mapping webhook.
+- **`billing.service.ts`** : `assertEnabled()` → 503 hors flag (**off par défaut**, règle d'or) ; quota via
+  `countMonth` (transactions **SENT du mois civil UTC** uniquement, Cypher Neo4j) — compté pour tout niveau
+  à quota fini ; `applySubscription` écrit `subscriptionTier` + `stripeCustomer` sur le nœud User
+  (**idempotent**) ; `createCheckout(email, tier='PRO')` (Price ID du niveau).
+- **`billing.controller.ts`** : `POST /api/billing/create-checkout` (body optionnel `{tier}`,
+  défaut PRO, 400 si invalide/FREE) + `GET /api/billing/status` (`quotaMax: null` = illimité).
 - **`webhooks/stripe.webhook.controller.ts`** : `constructEvent` signé (`STRIPE_WEBHOOK_SECRET`), garde
-  `StripeIpGuard` (allowlist officielle `STRIPE_WEBHOOK_IPS`, **fail-closed**) ; diffuse la mise à jour tier
-  (3.6) : `EarlyAdopterService.isEarlyAdopter(userId)` → exemption du plafond FREE.
+  `StripeIpGuard` (allowlist officielle `STRIPE_WEBHOOK_IPS`, **fail-closed**) ; tier résolu par
+  **Price ID configuré** → repli `metadata.tier` → défaut PRO ; `deleted` → FREE.
+- **Règle d'or V1.5** : au-delà de 15 tx/mois (Free), l'API renvoie
+  **`402 Payment Required`** (`BILLING_QUOTA_EXCEEDED`, message d'upgrade) ; Essentiel/Pro plafonnés
+  pareillement. Commission du niveau timbrée en `feeRate` sur chaque `Transaction` (prélèvement : P2).
 
 ### Adaptation majeure : `stripe@22.5.0` et la chaîne CJS/ts-jest
 
@@ -262,11 +269,14 @@ Notes de validation live (incidents résolus en cours de session) :
 | Fichier | Rôle |
 |---|---|
 | `src/billing/billing.module.ts` | Module conditionnel `BILLING_ENABLED` |
-| `src/billing/billing.controller.ts` | `POST /billing/checkout` + `GET /billing/tier` |
-| `src/billing/billing.service.ts` | Quota FREE (mois civil UTC), tiers, applySubscription idempotent, moteur set Stripe |
-| `src/billing/webhooks/stripe.webhook.controller.ts` | `constructEvent` signé + `StripeIpGuard` fail-closed |
+| `src/billing/pricing.ts` | **V1.5** : grille 4 niveaux (quotas, commissions, Price IDs, mapping webhook) |
+| `src/billing/billing.controller.ts` | `POST /billing/create-checkout {tier}` + `GET /billing/status` |
+| `src/billing/billing.service.ts` | Quota (mois civil UTC), tiers, applySubscription idempotent, checkout par niveau |
+| `src/billing/webhooks/stripe.webhook.controller.ts` | `constructEvent` signé + `StripeIpGuard` fail-closed ; tier par Price ID |
 | `src/common/guards/stripe-ip.guard.ts` | Allowlist officielle des IP webhooks Stripe |
-| `src/billing/billing.service.spec.ts` | 4 tests (503 sans flag, countMonth UTC, applySubscription idempotent, mapping tier webhook) |
+| `src/billing/billing.service.spec.ts` | 6 tests (503 sans flag, countMonth UTC, applySubscription idempotent, mapping 4 niveaux, grille quotas/prix, messages) |
+| `src/transactions/transactions.service.ts` | **V1.5** : quota 402 multi-niveaux + `feeRate` (commission) à la création |
+| `clearnet-mobile/src/screens/BillingScreen.tsx` | **V1.5** : 4 niveaux, `quotaMax: null` = illimité, barre pour tout quota fini |
 | `tsconfig.json` | `+ esModuleInterop: true` (interop CJS Stripe — aucun autre import default touché) |
 | `package.json` | `+ stripe ^22.5.0` (runtime dev, pas monté en prod sans clé) |
 
@@ -316,6 +326,7 @@ Notes de validation live (incidents résolus en cours de session) :
 | Backend tests J1–J2 (6 suites / 25 tests) | ✅ **PASS 6/6 suites — 25/25** (274 s, `--runInBand`) — admin.controller 5/5, roles.guard 7/7, queue.integration 2/2 (SKIP Redis local, vert), app.controller 2/2, companies.service 4/4, company.entity 5/5 |
 | Backend `nest build` (J3–J10, esModuleInterop) | ✅ **PASS** (0 erreur TS) |
 | Backend tests J3–J10 (7 suites / 29 tests) | ✅ **PASS 7/7 suites — 29/29** (67 s `--runInBand` ; +billing.service 4/4) — 2 incidents Stripe résolus en session : résolution types v22 + interop CJS (`esModuleInterop`) |
+| Backend tests (V1.5 Pricing) | ✅ **PASS — 30/30** (billing.service 6/6 dont mapping 4 niveaux par Price ID + grille quotas/prix) — `npm run build` 0 erreur, mobile `tsc --noEmit` ✅ |
 | Blockchain `npx hardhat compile` | ✅ **PASS** (après retrait héritage OZ Ownable sur `MultiSigWallet`) |
 | Blockchain tests (5) | ✅ **PASS 5/5** — ClearNetToken 1, CompensationEngine 1, MultiSigWallet 3 (refus sans 2 conf, exécution 2/3, backup 3e) |
 | `npm run test:e2e` (Redis réel) | ⏳ À exécuter avec Redis/emulator provisionné (étape signature CI, non bloquante localement) |
@@ -332,7 +343,8 @@ curl -s http://localhost:3000/metrics | findstr bull_
 # 3. Monitor multisig (MULTISIG_ENABLED=true, MULTISIG_ADDRESS=<adresse>, METRICS_ENABLED=true)
 curl -s http://localhost:3000/metrics | findstr clearnet_multisig
 # 4. Billing (BILLING_ENABLED=true, STRIPE_SECRET_KEY=…, STRIPE_WEBHOOK_SECRET=…)
-curl -s -X POST -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" -d "{\"amount\":100}" http://localhost:3000/api/billing/checkout
+curl -s -X POST -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" -d "{\"tier\":\"ESSENTIAL\"}" http://localhost:3000/api/billing/create-checkout
+curl -s -H "Authorization: Bearer $JWT" http://localhost:3000/api/billing/status
 # 5. Ledger 2FA (MULTISIG_ENABLED=true)
 curl -s -X POST -H "Authorization: Bearer $JWT" -d "{\"txId\":\"<tx>\"}" http://localhost:3000/api/signatures/request
 ```
@@ -357,3 +369,27 @@ curl -s -X POST -H "Authorization: Bearer $JWT" -d "{\"txId\":\"<tx>\"}" http://
 1. **Validation en environnement réel** : `test:e2e` (Redis), CI helm (`ci-validation.yml`), CI mobile (émulateur Android, flows Maestro), déploiement réel du multisig sur Sepolia (`scripts/deploy-multisig.ts` + `multisig-approve.*`) puis transfert effectif de l'ownership.
 2. **V1.4.1 (reporting)** : `ReportingModule` + export PDF mobile (`ExportButton.tsx` — expo-print déjà disponible) ; jauges `clearnet_free_quota_used/max` (nécessaires à l'activation de l'alerte `FreeQuotaNearLimit` livrée J11–J13).
 3. **Durcissement ops** : examen post-merge de la 2FA ledger (verrouillage par tentative, TTL), restauration des clés multisig (secours) si le socle part en prod.
+
+---
+
+## 8. V1.5 — Planification livrée
+
+En continuité de V1.4, **six plans exécutables** ont été livrés (prêts à soumettre, tous **off par
+défaut** — aucun impact sur V1.4 tant que les flags restent inactifs) :
+
+| Livrable V1.5 | Périmètre | Flag |
+|---|---|---|
+| `I18N_CURRENCY_UPGRADE.md` | i18n 4 langues (backend + mobile, détection expo-localization), multi-devises EUR/USD/GBP/CHF (oracles Chainlink + statique), **convertisseur temps réel** (REST `/api/fx/*` + WebSocket `/fx`), écrans traduits (testIDs préservés → flows Maestro intacts) | `I18N_ENABLED` · `MULTI_CURRENCY_ENABLED` |
+| `RECOMMANDATION_DEPLOIEMENT_L2.md` | Socle ZK sorti du mainnet : **Polygon zkEVM** (batch proofs, coût ≪ 0,01 $/tx) — corrections apportées (Arbitrum Orbit ≠ ZK, pas de « subvention » alt_bn128) | — (déploiement) |
+| `CEREMONIE_TRUSTED_SETUP.md` | Cérémonie Phase 2 publique : Perpetual Powers of Tau + snarkjs web (SRI/air-gap), 8–12 contributeurs, un seul honnête suffit, destruction des déchets toxiques (Tails) | circuit `clearing.circom` (prérequis : gel) |
+| `SYNC_ONCHAIN_NEO4J.md` | Indexation on-chain → Neo4j : finalité chaîne-dépendante (12 blocs ≠ universel), reorgs traitées en statuts (jamais de purge — piste d'audit), checkpoint atomique | `SYNC_ENABLED` |
+| `RECONCILIATION_WORKER_INTEGRATION.md` | Worker BullMQ réconciliation (cron 5 min) : corrélation par hash (le dépôt n'émet ni `cycleId` ni `SettlementExecuted` réels — événement `Compensated`), statuts `PENDING/SUCCESS/REORG_ROLLBACK`, métriques | `RECONCILIATION_ENABLED` |
+| `ZK_BATCH_INTEGRATION.md` | Circuit `ClearNetBatchNetting.circom` (Poseidon — math du netting corrigée), `VerifierBatch.sol`, `ZkBatchService` (collect → preuve → soumission, multisig-aware), `settleBatchWithProof` + `IZkBatchVerifier` (additif) | `ZK_BATCH_ENABLED` |
+
+**Suite de tests cible V1.5** : 30 (V1.4) + 4 (reconciliation) + 4 (zkbatch) = **38 backend** ;
+contrats 5/5 existants intacts + `VerifierBatch.sol` (tests 2+3+4) ; flows Maestro inchangés
+(pas de testID modifié). Chaque flag est indépendant, réversible et provisionné via
+`.env.example`/Helm.
+**Revue croisée des plans** : `REVUE_V1_5_VIGILANCE.md` — 6 points de vigilance (keyring HKDF,
+correctif circom, mapping batch×réconciliation, oracle multi-source médiane, benchmarks gas
+10/20/50, gate de gel du circuit) + roadmap S1→S4 et matrice de traçabilité.

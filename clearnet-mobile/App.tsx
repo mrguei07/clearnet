@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Component, useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import Toast from 'react-native-toast-message';
@@ -14,6 +14,34 @@ import BillingScreen from './src/screens/BillingScreen';
 const TOKEN_KEY = 'clearnet.token';
 const EMAIL_KEY = 'clearnet.email';
 const INDUSTRY_KEY = 'clearnet.industry';
+
+// ---- DIAGNOSTIC TEMPORAIRE (écran d'erreur visible) ----
+let globalError: string | null = null;
+function formatError(e: unknown): string {
+  if (e instanceof Error) return `${e.message}\n\n${e.stack ?? ''}`;
+  return String(e);
+}
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(e: unknown) {
+    return { error: formatError(e) };
+  }
+  render() {
+    if (this.state.error) return <ErrorScreen message={this.state.error} />;
+    return this.props.children;
+  }
+}
+function ErrorScreen({ message }: { message: string }) {
+  return (
+    <View style={styles.fatal}>
+      <Text style={styles.fatalTitle}>ERREUR (diagnostic)</Text>
+      <ScrollView>
+        <Text style={styles.fatalText}>{message}</Text>
+      </ScrollView>
+    </View>
+  );
+}
+// ---- FIN DIAGNOSTIC TEMPORAIRE ----
 
 type Tab = 'home' | 'transactions' | 'graph' | 'billing';
 
@@ -92,6 +120,22 @@ export default function App() {
     })();
   }, []);
 
+  useEffect(() => {
+    const ErrorUtilsGlobal = (globalThis as { ErrorUtils?: { setGlobalHandler: (fn: (e: unknown) => void) => void } }).ErrorUtils;
+    if (ErrorUtilsGlobal) {
+      ErrorUtilsGlobal.setGlobalHandler((e: unknown) => {
+        globalError = formatError(e);
+        setFatalError(globalError);
+      });
+    }
+    const onError = (e: unknown) => setFatalError(formatError(e));
+    (globalThis as { HermesInternal?: unknown }).HermesInternal;
+    globalThis.addEventListener?.('error', onError as EventListener);
+    return () => globalThis.removeEventListener?.('error', onError as EventListener);
+  }, []);
+
+  const [fatalError, setFatalError] = useState<string | null>(globalError);
+
   const onAuthenticated = async (newToken: string, newEmail: string, newIndustry?: string | null) => {
     await AsyncStorage.multiSet([
       [TOKEN_KEY, newToken],
@@ -119,20 +163,26 @@ export default function App() {
     );
   }
 
+  if (fatalError) {
+    return <ErrorScreen message={fatalError} />;
+  }
+
   return (
-    <ThemeProvider industryCode={industry}>
-      <View style={styles.container}>
-        <StatusBar style="light" />
-        {token && email ? (
-          <MainTabs token={token} onLogout={onLogout} />
-        ) : showRegister ? (
-          <RegisterScreen onAuthenticated={onAuthenticated} onBack={() => setShowRegister(false)} />
-        ) : (
-          <LoginScreen onAuthenticated={onAuthenticated} onRegister={() => setShowRegister(true)} />
-        )}
-      </View>
-      <Toast />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider industryCode={industry}>
+        <View style={styles.container}>
+          <StatusBar style="light" />
+          {token && email ? (
+            <MainTabs token={token} onLogout={onLogout} />
+          ) : showRegister ? (
+            <RegisterScreen onAuthenticated={onAuthenticated} onBack={() => setShowRegister(false)} />
+          ) : (
+            <LoginScreen onAuthenticated={onAuthenticated} onRegister={() => setShowRegister(true)} />
+          )}
+        </View>
+        <Toast />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -150,4 +200,7 @@ const styles = StyleSheet.create({
   tabItem: { flex: 1, alignItems: 'center', paddingTop: 10, gap: 4 },
   tabLabel: { fontSize: 12, fontWeight: '600' },
   tabIndicator: { width: 28, height: 3, borderRadius: 2 },
+  fatal: { flex: 1, backgroundColor: '#111a2c', padding: 24, justifyContent: 'center' },
+  fatalTitle: { color: '#f87171', fontSize: 18, fontWeight: '800', marginBottom: 12 },
+  fatalText: { color: '#e2e8f0', fontFamily: 'monospace', fontSize: 12 },
 });

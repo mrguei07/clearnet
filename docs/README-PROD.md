@@ -192,9 +192,13 @@ helm upgrade --install clearnet infrastructure/helm/clearnet \
 kubectl create secret generic clearnet-secrets -n clearnet \
   --from-literal=jwt-secret="$(openssl rand -hex 32)" \
   --from-literal=password="$(openssl rand -hex 16)" \
-  --from-literal=auth="neo4j/$(openssl rand -hex 16)"
+  --from-literal=auth="neo4j/$(openssl rand -hex 16)" \
+  --from-literal=stripe-secret-key="sk_live_…" \
+  --from-literal=stripe-webhook-secret="whsec_…" \
+  --from-literal=signature-2fa-secret="$(openssl rand -hex 16)"
 
-# 2. Référencer le Secret dans le chart (clés : jwt-secret, password, auth)
+# 2. Référencer le Secret dans le chart (clés : jwt-secret, password, auth,
+#    stripe-secret-key, stripe-webhook-secret, signature-2fa-secret)
 helm upgrade --install clearnet infrastructure/helm/clearnet \
   -f infrastructure/helm/clearnet/values-production.yaml \
   --set backend.existingSecret=clearnet-secrets \
@@ -203,9 +207,11 @@ helm upgrade --install clearnet infrastructure/helm/clearnet \
 
 Le chart ne génère alors **plus** le Secret Neo4j interne : le backend lit
 `jwt-secret`/`password` et Neo4j lit `auth` (format `user/password`) depuis
-`clearnet-secrets` (clés : `jwt-secret`, `password`, `auth`).
-Rotation : `kubectl create secret` (nouveau nom) puis re-déploiement + rollback
-immédiat si problème.
+`clearnet-secrets`. Les clés Stripe (facturation V1.5) et 2FA sont facultatives
+(`optional: true`) mais **requises pour activer le billing** : sans
+`stripe-secret-key`/`stripe-webhook-secret`, `BILLING_ENABLED=true` reste sans
+effet (503). Rotation : `kubectl create secret` (nouveau nom) puis re-déploiement
++ rollback immédiat si problème.
 
 ### Option C — SealedSecrets (Bitnami) ou ExternalSecrets (KMS/Vault)
 
