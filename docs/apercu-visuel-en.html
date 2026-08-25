@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClearNet V1.4 — Interactive visual preview</title>
+<title>ClearNet V1.5 — Interactive visual preview</title>
 <style>
   :root{
     --primary:#38bdf8; --secondary:#0ea5e9; --accent:#f59e0b;
@@ -196,19 +196,43 @@
   .caption{max-width:1080px; margin:26px auto 0; text-align:center; font-size:12px; color:var(--muted)}
   .note{max-width:1080px; margin:14px auto 0; background:rgba(56,189,248,.08); border:1px solid rgba(56,189,248,.25); border-radius:12px; padding:12px 16px; font-size:12.5px; color:var(--muted); line-height:1.6}
   .note b{color:var(--text)}
+
+  /* ---- Notifications & Profile (V1.5) ---- */
+  .ico{font-size:16px; cursor:pointer; line-height:1; position:relative}
+  .ico .nbdg{position:absolute; top:-2px; right:-3px; width:7px; height:7px; border-radius:50%; background:#f87171}
+  .avatar{width:26px; height:26px; border-radius:50%; background:var(--primary); color:#0b1220; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; cursor:pointer}
+  .overlay{position:absolute; inset:0; background:var(--bg); z-index:7; display:flex; flex-direction:column; border-radius:34px; overflow:hidden}
+  .overlay[hidden]{display:none}
+  .ov-hdr{display:flex; align-items:center; gap:12px; padding:16px 18px 12px; border-bottom:1px solid rgba(148,163,184,.15)}
+  .ov-back{color:var(--primary); font-weight:700; font-size:14px; cursor:pointer}
+  .ov-title{font-size:17px; font-weight:700}
+  .ov-scroll{flex:1; overflow-y:auto; padding:14px 16px 18px; scrollbar-width:none}
+  .nitem{display:flex; gap:11px; background:var(--surface); border-radius:13px; padding:12px 14px; margin-bottom:9px}
+  .nitem .ni{width:34px; height:34px; border-radius:10px; flex:none; display:flex; align-items:center; justify-content:center; font-size:15px}
+  .nitem .nt{font-size:13px; font-weight:700}
+  .nitem .nb{font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4}
+  .nitem .nm{font-size:10.5px; color:var(--muted); margin-top:5px}
+  .phead{display:flex; align-items:center; gap:13px; padding:6px 2px 16px}
+  .pavatar{width:52px; height:52px; border-radius:50%; background:var(--primary); color:#0b1220; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800}
+  .phead .pn{font-size:16px; font-weight:800}
+  .phead .pe{font-size:12px; color:var(--muted); margin-top:2px}
+  .prow{display:flex; justify-content:space-between; align-items:center; padding:14px 2px; border-bottom:1px solid rgba(148,163,184,.12); cursor:pointer; font-size:13.5px}
+  .prow .pv{color:var(--muted); font-size:12.5px}
+  .prow .pc{color:var(--muted)}
+  .prow.danger .pl{color:#f87171; font-weight:600}
 </style>
 </head>
 <body>
 
 <header>
-  <div><img class="brand" src="Logo/ClearNet Logo 1.png" alt="ClearNet"><h1 style="margin-top:6px">Visual preview <span>V1.4</span> <span style="color:#4ade80; font-size:13px">interactive</span></h1></div>
+  <div><img class="brand" src="Logo/ClearNet Logo 1.png" alt="ClearNet"><h1 style="margin-top:6px">Visual preview <span>V1.5</span> <span style="color:#4ade80; font-size:13px">interactive</span></h1></div>
   <div class="controls">
     <label class="sect" for="sector">Sector (theme):</label>
     <select id="sector"></select>
   </div>
 </header>
 
-<div class="hint">Interactive demo faithful to the React Native screens (V1.4 + UX axes). Try: <b>sign in</b>/<b>create account</b>, <b>＋ New payment</b> (watch the ⏳ → ✅ badge live, type "FAIL..." to see the failure), <b>cycles</b> on home (click → graph), <b>graph nodes</b> (detailed sheet), <b>plan</b> in Subscription, <b>network outage</b> simulation. The theme follows the selected sector.</div>
+<div class="hint">Interactive demo faithful to the React Native screens (V1.5, Expo SDK 57). Try: <b>sign in</b>/<b>create account</b>, <b>＋ New payment</b> (watch the ⏳ → ✅ badge live, type "FAIL..." to see the failure), <b>cycles</b> on home (click → graph), <b>graph nodes</b> (detailed sheet), <b>plan</b> in Subscription, <b>network outage</b> simulation, <b>🔔 notifications</b> and <b>profile → delete account</b>. The theme follows the selected sector.</div>
 
 <div class="stage">
   <!-- ================= TÉLÉPHONE 1 : APP ================= -->
@@ -217,7 +241,13 @@
       <div class="statusbar"><span>21:47</span><span style="opacity:0">.</span><span>▮▮▮ 100%</span></div>
 
       <div class="screen" id="sc-home">
-        <div class="hdr"><h2>Hello</h2><span class="logout" onclick="doLogout()">Log out</span></div>
+        <div class="hdr"><h2>Hello</h2>
+          <span style="display:flex; align-items:center; gap:13px">
+            <span class="ico" onclick="showNotifs()">🔔<i class="nbdg"></i></span>
+            <span class="avatar" onclick="showProfile()">C</span>
+            <span class="logout" onclick="doLogout()">Log out</span>
+          </span>
+        </div>
         <div class="sectorbadge" id="sectorbadge"><span class="sg">⚓</span><span class="sl">Maritime &amp; Transport</span></div>
         <div class="balance" id="balanceCard">
           <div class="lbl">Available balance</div>
@@ -263,7 +293,7 @@
       <div class="screen" id="sc-billing" hidden>
         <div class="ttl"><h2>ClearNet Subscription</h2><span class="logout" onclick="openPlans()">Change</span></div>
         <div class="roi block" id="roiWidget">
-          <div class="rl">💶 Savings achieved (V1.4)</div>
+          <div class="rl">💶 Savings achieved (V1.5)</div>
           <div class="rv" id="roiVal">37,50 €</div>
           <div class="rd" id="roiSub">Based on 15 successful settlements × 2,50 € in fees avoided</div>
         </div>
@@ -278,6 +308,18 @@
         <div class="feature"><span>Real-time settlement</span><b id="f2">Yes</b></div>
         <div class="feature"><span>History &amp; export</span><b id="f3">Yes</b></div>
         <div class="feature"><span>Dedicated support</span><b id="f4">Yes</b></div>
+      </div>
+
+      <!-- Notifications (V1.5) -->
+      <div class="overlay" id="sc-notifs" hidden>
+        <div class="ov-hdr"><span class="ov-back" onclick="closeOverlay()">‹ Back</span><span class="ov-title">Notifications</span></div>
+        <div class="ov-scroll" id="notifList"></div>
+      </div>
+
+      <!-- Profile (V1.5) -->
+      <div class="overlay" id="sc-profile" hidden>
+        <div class="ov-hdr"><span class="ov-back" onclick="closeOverlay()">‹ Back</span><span class="ov-title">Profile</span></div>
+        <div class="ov-scroll" id="profileBody"></div>
       </div>
 
       <div class="tabs" id="tabs">
@@ -355,8 +397,8 @@
 </div>
 
 <div class="toasts" id="toasts"></div>
-<div class="caption">Interactive demo built from the real screens (src/screens, src/constants/industries.ts) — including the V1.4 UX axes proposed in UX_IMPROVEMENTS_V1.4.md and the V1.5 pricing grid (Free / Essentiel / Pro / Enterprise — quotas, commissions, 402 beyond 15 tx for Free).</div>
-<div class="note"><b>Android build:</b> <span style="color:#4ade80">✅ BUILD SUCCESSFUL</span> (17/08 05:07, 546 tasks, 1h 35) — APK delivered in <code>clearnet-mobile\clearnet-v1.4.apk</code> (62 MB). Issues resolved: JDK 17 + Gradle 8.0.1, Aliyun mirror (plugins), <code>rootProject.ext</code> SDK, <code>components.release</code> guards, <code>archiveClassifier</code>, CMake 3.22.1, Build Tools 30.0.3, legacy expo-splash-screen classes/res recreated.</div>
+<div class="caption">Interactive demo built from the real screens (src/screens, src/constants/industries.ts) — Expo SDK 57 · V1.5 pricing grid (Free / Essentiel / Pro / Enterprise) · account deletion (RGPD / Play Store) · new Notifications &amp; Profile screens.</div>
+<div class="note"><b>Android build (Expo SDK 57):</b> <span style="color:#4ade80">✅ AAB BUILT + VALIDATED via GitHub Actions</span> — <code>app-release.aab</code> (29.4 MB, Play Store) · RN 0.86 / Gradle 9.3.1 / NDK 27.1 / Hermes / New Architecture · iOS IPA via <code>eas build -p ios</code>. See <code>docs/STORE_SUBMISSION.md</code>.</div>
 
 <script>
 /* ============================ DONNÉES ============================ */
@@ -764,6 +806,42 @@ function closePlans(){ document.getElementById("plansModal").classList.remove("o
 function moreTx(){ toast('info', 'Full history', 'All accounting settlements can be viewed', '📚'); }
 document.querySelectorAll('.field input').forEach(i => i.addEventListener('focus', e => e.target.parentElement.classList.add('focus')));
 document.querySelectorAll('.field input').forEach(i => i.addEventListener('blur',  e => e.target.parentElement.classList.remove('focus')));
+
+/* ============================ NOTIFICATIONS & PROFILE (V1.5) ============================ */
+let delArmed = false;
+function showNotifs(){
+  document.getElementById("sc-notifs").hidden = false;
+  document.getElementById("notifList").innerHTML = [
+    {i:'✅', bg:'rgba(74,222,128,.15)', c:'#4ade80', t:'Compensation settled', b:'Air France → You · +245,000 €', m:'2 h ago'},
+    {i:'⏳', bg:'rgba(245,158,11,.15)', c:'#f59e0b', t:'Settlement pending', b:'Sanofi → BioMérieux · 120,300 €', m:'5 h ago'},
+    {i:'⚠️', bg:'rgba(248,113,113,.15)', c:'#f87171', t:'Monthly quota at 80%', b:'Upgrade your plan to keep settling', m:'1 d ago'},
+    {i:'＋', bg:'rgba(56,189,248,.15)', c:'#38bdf8', t:'New counterpart connected', b:'Dassault Aviation joined your network', m:'2 d ago'},
+  ].map(n=>`<div class="nitem"><div class="ni" style="background:${n.bg};color:${n.c}">${n.i}</div><div><div class="nt">${n.t}</div><div class="nb">${n.b}</div><div class="nm">${n.m}</div></div></div>`).join('');
+}
+function showProfile(){
+  document.getElementById("sc-profile").hidden = false;
+  const s = SECTORS.find(x=>x[0]===state.industry) || SECTORS[0];
+  const name = (state.email.split('@')[0] || 'Company').replace(/[._-]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  document.getElementById("profileBody").innerHTML = `
+    <div class="phead">
+      <div class="pavatar">${(name[0]||'C').toUpperCase()}</div>
+      <div><div class="pn">${name}</div><div class="pe">${state.email}</div></div>
+    </div>
+    <div class="prow"><span class="pl">Sector</span><span class="pv">${s[2]} ${s[1]}</span></div>
+    <div class="prow" onclick="closeOverlay();goto('billing')"><span class="pl">Subscription</span><span class="pc">›</span></div>
+    <div class="prow"><span class="pl">Security</span><span class="pc">›</span></div>
+    <div class="prow"><span class="pl">Help &amp; support</span><span class="pc">›</span></div>
+    <div class="prow" onclick="doLogout()"><span class="pl" style="color:var(--muted)">Log out</span></div>
+    <div class="prow danger" onclick="confirmDelete()"><span class="pl">Delete my account</span></div>`;
+}
+function closeOverlay(){ document.getElementById("sc-notifs").hidden = true; document.getElementById("sc-profile").hidden = true; }
+function confirmDelete(){
+  if (!delArmed){ delArmed = true; toast('warn','Confirm deletion','Tap "Delete my account" again to confirm','⚠️'); setTimeout(()=>delArmed=false, 3200); return; }
+  delArmed = false;
+  closeOverlay();
+  toast('err','Account deleted','Personal data erased (RGPD) — session closed','🗑️');
+  doLogout();
+}
 
 /* ============================ INIT ============================ */
 apply("Maritime");
