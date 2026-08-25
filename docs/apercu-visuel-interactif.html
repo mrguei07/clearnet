@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ClearNet — Aperçu interactif</title>
+<style>
+  :root {
+    --primary: #38bdf8;
+    --secondary: #0ea5e9;
+    --accent: #f59e0b;
+    --background: #0b1220;
+    --surface: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --danger: #f87171;
+    --on-primary: #0b1220;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 800px at 20% -10%, #16233a 0%, #05070d 60%);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---- cadre téléphone ---- */
+  .stage { width: 100%; height: 100dvh; display: flex; align-items: center; justify-content: center; }
+  .phone {
+    position: relative;
+    width: 390px;
+    max-width: 100vw;
+    height: 844px;
+    max-height: 100dvh;
+    background: var(--background);
+    border-radius: 44px;
+    overflow: hidden;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.06), inset 0 0 0 3px #0a0f1c;
+    display: flex;
+    flex-direction: column;
+    transition: background .4s;
+  }
+  @media (max-width: 430px), (max-height: 880px) {
+    .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 150px; height: 26px; background: #05070d; border-radius: 0 0 16px 16px; z-index: 50;
+  }
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ---- écrans auth ---- */
+  .auth { padding: 96px 24px 24px; justify-content: center; }
+  .brand { text-align: center; }
+  .brand .logo { font-size: 42px; font-weight: 800; letter-spacing: -.5px; color: var(--primary); }
+  .brand .tag { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .field { display: block; width: 100%; background: var(--surface); color: var(--text);
+    border: 1px solid transparent; border-radius: 12px; padding: 14px; margin-top: 12px; font-size: 15px; outline: none; }
+  .field::placeholder { color: var(--muted); }
+  .field:focus { border-color: var(--primary); }
+  .btn { display: block; width: 100%; border: 0; border-radius: 12px; padding: 15px;
+    background: var(--primary); color: var(--on-primary); font-size: 16px; font-weight: 700;
+    text-align: center; cursor: pointer; margin-top: 14px; transition: transform .05s, opacity .2s; }
+  .btn:active { transform: scale(.98); }
+  .btn.ghost { background: transparent; color: var(--primary); font-weight: 600; font-size: 13px; }
+  .link { text-align: center; margin-top: 16px; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .error { color: var(--danger); text-align: center; font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+  .scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; }
+
+  /* ---- chips secteurs ---- */
+  .section-label { font-size: 14px; font-weight: 600; margin-top: 18px; margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--surface);
+    background: var(--surface); border-radius: 999px; padding: 8px 11px; cursor: pointer;
+    max-width: 48%; transition: all .15s; }
+  .chip .g { font-size: 14px; font-weight: 700; }
+  .chip .l { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.2; }
+  .chip.sel { background: var(--primary); border-color: var(--primary); }
+  .chip.sel .l { color: var(--on-primary); }
+
+  /* ---- app : header + tabs ---- */
+  .app { display: flex; flex-direction: column; }
+  .app-header { display: flex; justify-content: space-between; align-items: center; padding: 60px 20px 16px; }
+  .app-header .hi { font-size: 26px; font-weight: 700; }
+  .app-header .sector { color: var(--primary); font-size: 12px; font-weight: 700; margin-top: 2px; }
+  .app-header .out { color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .tab-content { flex: 1; overflow-y: auto; padding: 0 20px 12px; }
+  .tabbar { display: flex; border-top: 1px solid rgba(255,255,255,.07); padding: 6px 0 20px; background: rgba(11,18,32,.6); backdrop-filter: blur(10px); }
+  .tab { flex: 1; text-align: center; cursor: pointer; padding: 6px 0; }
+  .tab .t { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .tab.on .t { color: var(--primary); }
+  .tab .dot { width: 22px; height: 3px; border-radius: 2px; background: transparent; margin: 4px auto 0; }
+  .tab.on .dot { background: var(--primary); }
+
+  /* ---- cartes ---- */
+  .card { background: var(--surface); border-radius: 16px; padding: 16px; }
+  .balance { background: var(--primary); border-radius: 18px; padding: 20px; margin-bottom: 16px; color: var(--on-primary); }
+  .balance .lbl { font-size: 13px; font-weight: 600; opacity: .75; }
+  .balance .val { font-size: 34px; font-weight: 800; margin-top: 2px; }
+  .balance .sub { font-size: 12px; opacity: .7; margin-top: 8px; }
+  .row-card { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border-radius: 14px; padding: 16px; margin-bottom: 12px; cursor: pointer; }
+  .row-card .tt { font-size: 16px; font-weight: 700; }
+  .row-card .st { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .row-card .ar { color: var(--primary); font-size: 20px; font-weight: 700; }
+  .banner { display: flex; align-items: center; gap: 6px; margin: 4px 0 12px; }
+  .banner .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .banner .txt { font-size: 12px; color: var(--muted); }
+  .danger { color: var(--danger); text-align: center; font-size: 14px; font-weight: 600; margin: 28px 0 40px; cursor: pointer; }
+
+  /* ---- transactions ---- */
+  .tx { background: var(--surface); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  .tx .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .tx .who { font-size: 14px; font-weight: 700; }
+  .tx .amt { font-size: 15px; font-weight: 800; }
+  .tx .amt.in { color: #34d399; }
+  .tx .note { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .tx .meta { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; justify-content: space-between; }
+  .pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .pill.ok { background: rgba(52,211,153,.15); color: #34d399; }
+  .pill.wait { background: rgba(245,158,11,.15); color: var(--accent); }
+  .fab { position: absolute; right: 20px; bottom: 92px; width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: var(--on-primary); font-size: 26px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 24px -6px rgba(56,189,248,.6); }
+
+  /* ---- graph ---- */
+  .graph-wrap { height: 100%; min-height: 420px; position: relative; }
+  #graph { width: 100%; height: 100%; touch-action: none; }
+  .graph-hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); }
+
+  /* ---- billing ---- */
+  .tier { background: var(--surface); border-radius: 14px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .tier .n { font-size: 16px; font-weight: 700; }
+  .tier .p { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .tier .price { font-size: 16px; font-weight: 800; }
+  .tier.cur { border: 1px solid var(--primary); }
+  .bar { height: 8px; border-radius: 4px; background: var(--surface); overflow: hidden; margin: 4px 0 6px; }
+  .bar > div { height: 8px; border-radius: 4px; background: var(--primary); width: 40%; }
+  .hint { font-size: 12px; color: var(--muted); }
+
+  /* ---- modal ---- */
+  .modal { position: absolute; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; z-index: 80; padding: 24px; }
+  .modal.show { display: flex; }
+  .modal .box { background: var(--surface); border-radius: 18px; padding: 20px; width: 100%; max-width: 320px; }
+  .modal .title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .modal .msg { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.4; }
+  .modal .acts { display: flex; gap: 10px; }
+  .modal .acts .btn { flex: 1; margin-top: 0; }
+  .modal .acts .btn.cancel { background: var(--surface); color: var(--text); border: 1px solid rgba(255,255,255,.12); }
+  .modal .acts .btn.danger { background: var(--danger); color: #fff; }
+  .toast { position: absolute; bottom: 96px; left: 20px; right: 20px; background: #0f172a; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 12px 14px; font-size: 13px; z-index: 90; display: none; align-items: center; gap: 8px; }
+  .toast.show { display: flex; animation: up .3s; }
+  @keyframes up { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone" id="phone">
+    <div class="notch"></div>
+
+    <!-- ============ LOGIN ============ -->
+    <section class="screen active auth" id="scr-login">
+      <div class="brand">
+        <div class="logo">ClearNet</div>
+        <div class="tag">Transparence des paiements inter-entreprises</div>
+      </div>
+      <input class="field" id="login-email" type="email" placeholder="Email" autocomplete="off" />
+      <input class="field" id="login-pass" type="password" placeholder="Mot de passe" />
+      <div class="error" id="login-err"></div>
+      <button class="btn" onclick="doLogin()">Se connecter</button>
+      <div class="link" onclick="show('register')">Pas de compte ? Créer un compte professionnel</div>
+      <div style="margin-top:28px;text-align:center;font-size:11px;color:var(--muted)">Démo interactive — aucune donnée réelle</div>
+    </section>
+
+    <!-- ============ REGISTER ============ -->
+    <section class="screen" id="scr-register">
+      <div class="scroll" style="padding:76px 24px 24px">
+        <div class="brand"><div class="logo" style="font-size:34px">ClearNet</div>
+        <div class="tag">Créez votre compte professionnel</div></div>
+        <input class="field" placeholder="Nom de l'entreprise" id="reg-name" />
+        <input class="field" placeholder="Email" type="email" id="reg-email" />
+        <input class="field" placeholder="Mot de passe (6+ caractères)" type="password" id="reg-pass" />
+        <div class="section-label">Secteur d'activité (obligatoire)</div>
+        <div class="chips" id="industry-chips"></div>
+        <div class="error" id="reg-err"></div>
+        <button class="btn" onclick="doRegister()">Créer un compte</button>
+        <div class="link" style="color:var(--muted)" onclick="show('login')">← Retour à la connexion</div>
+      </div>
+    </section>
+
+    <!-- ============ APP ============ -->
+    <section class="screen app" id="scr-app">
+      <div class="app-header">
+        <div>
+          <div class="hi">Bonjour</div>
+          <div class="sector" id="sector-badge">Supply Chain</div>
+        </div>
+        <div class="out" onclick="logout()">Déconnexion</div>
+      </div>
+      <div class="tab-content" id="tab-content"></div>
+      <div class="tabbar">
+        <div class="tab on" data-tab="home" onclick="setTab('home')"><div class="t">Accueil</div><div class="dot"></div></div>
+        <div class="tab" data-tab="tx" onclick="setTab('tx')"><div class="t">Transactions</div><div class="dot"></div></div>
+        <div class="tab" data-tab="graph" onclick="setTab('graph')"><div class="t">Réseau</div><div class="dot"></div></div>
+        <div class="tab" data-tab="billing" onclick="setTab('billing')"><div class="t">Abonnement</div><div class="dot"></div></div>
+      </div>
+      <button class="fab" id="fab" onclick="openNewTx()" style="display:none">+</button>
+    </section>
+
+    <!-- modal générique -->
+    <div class="modal" id="modal">
+      <div class="box">
+        <div class="title" id="modal-title"></div>
+        <div class="msg" id="modal-msg"></div>
+        <div class="acts" id="modal-actions"></div>
+      </div>
+    </div>
+    <div class="toast" id="toast"><span style="color:var(--accent)">●</span><span id="toast-txt"></span></div>
+  </div>
+</div>
+
+<script>
+/* ============================== données ============================== */
+const INDUSTRIES = [
+  { code:'SupplyChain', label:'Supply Chain', glyph:'\u21C4', p:{primary:'#38bdf8',secondary:'#0ea5e9',accent:'#f59e0b',background:'#0b1220',surface:'#1e293b',text:'#e2e8f0',muted:'#94a3b8'} },
+  { code:'RealEstate', label:'Immobilier', glyph:'\u2302', p:{primary:'#f97316',secondary:'#ea580c',accent:'#fde047',background:'#160f0b',surface:'#2b211b',text:'#f5ede6',muted:'#b8a89c'} },
+  { code:'Energy', label:'Énergie', glyph:'\u26A1', p:{primary:'#fbbf24',secondary:'#f59e0b',accent:'#34d399',background:'#141006',surface:'#2a2410',text:'#f7efd9',muted:'#b8ac84'} },
+  { code:'Banking', label:'Banque & Finance', glyph:'\u00A4', p:{primary:'#34d399',secondary:'#10b981',accent:'#f87171',background:'#04140d',surface:'#123026',text:'#dff7ec',muted:'#8fb8a8'} },
+  { code:'Metallurgy', label:'Métallurgie', glyph:'\u25C6', p:{primary:'#94a3b8',secondary:'#64748b',accent:'#fb923c',background:'#101319',surface:'#23272f',text:'#e3e7ec',muted:'#9aa2ad'} },
+  { code:'Healthcare', label:'Santé', glyph:'\u271E', p:{primary:'#f472b6',secondary:'#ec4899',accent:'#60a5fa',background:'#160b12',surface:'#2b1b24',text:'#f8e7f0',muted:'#b99aab'} },
+  { code:'Fashion', label:'Mode', glyph:'\u2726', p:{primary:'#c084fc',secondary:'#a855f7',accent:'#fcd34d',background:'#120c1a',surface:'#261b33',text:'#f0e8fa',muted:'#b0a2c2'} },
+  { code:'IndustrialTextile', label:'Textile industriel', glyph:'\u2740', p:{primary:'#2dd4bf',secondary:'#14b8a6',accent:'#f59e0b',background:'#071412',surface:'#122723',text:'#d9f5f0',muted:'#8fb3ac'} },
+  { code:'Defense', label:'Armement & Défense', glyph:'\u25A0', p:{primary:'#4ade80',secondary:'#22c55e',accent:'#fbbf24',background:'#07130b',surface:'#122618',text:'#ddf4e4',muted:'#8faf99'} },
+  { code:'Technology', label:'Technologie', glyph:'\u25C8', p:{primary:'#60a5fa',secondary:'#3b82f6',accent:'#22d3ee',background:'#0a1220',surface:'#16233a',text:'#e2ebfa',muted:'#93a5c4'} },
+  { code:'InternationalTrade', label:'Commerce international', glyph:'\u2693', p:{primary:'#22d3ee',secondary:'#06b6d4',accent:'#fbbf24',background:'#06141a',surface:'#0f2831',text:'#d9f2f8',muted:'#8bb0ba'} },
+  { code:'Aviation', label:'Aviation', glyph:'\u2708', p:{primary:'#7dd3fc',secondary:'#38bdf8',accent:'#f97316',background:'#081220',surface:'#12263c',text:'#e0edfa',muted:'#93a9bf'} },
+  { code:'Maritime', label:'Maritime & Transport', glyph:'\u2693', p:{primary:'#38bdf8',secondary:'#0284c7',accent:'#fde047',background:'#061426',surface:'#0e2a45',text:'#d8ecf7',muted:'#8aa8c4'} },
+  { code:'Spatial', label:'Aérospatial & Spatial', glyph:'\u2605', p:{primary:'#a78bfa',secondary:'#7c3aed',accent:'#f0abfc',background:'#0e0b1c',surface:'#1f1a36',text:'#eae4fa',muted:'#a49bc4'} },
+  { code:'Biotech', label:'Biotechnologie & Pharma', glyph:'\u2623', p:{primary:'#4ade80',secondary:'#16a34a',accent:'#ffffff',background:'#07130a',surface:'#10241a',text:'#dcf5e2',muted:'#8fb89c'} },
+];
+
+let palette = INDUSTRIES[0].p;
+let industryCode = null;
+let currentTab = 'home';
+let tx = [
+  { id:1, from:'Aéroports de Paris', to:'Air France', amt:245000, note:'Règlement compensation T3', date:'18 août 2026 · 14:22', status:'ok' },
+  { id:2, from:'TotalEnergies', to:'EDF', amt:890500, note:'Échange d\'énergie', date:'17 août 2026 · 09:05', status:'ok' },
+  { id:3, from:'Sanofi', to:'BioMérieux', amt:120300, note:'Facture fournisseur', date:'16 août 2026 · 11:40', status:'wait' },
+  { id:4, from:'Thales', to:'Dassault Aviation', amt:3200000, note:'Acompte programme', date:'15 août 2026 · 16:10', status:'ok' },
+  { id:5, from:'CMA CGM', to:'Port de Marseille', amt:560000, note:'Frais portuaires', date:'14 août 2026 · 08:55', status:'ok' },
+];
+
+/* ============================== helpers ============================== */
+const $ = id => document.getElementById(id);
+const fmt = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+
+function applyPalette(p){
+  palette = p;
+  const r = document.documentElement.style;
+  r.setProperty('--primary', p.primary);
+  r.setProperty('--secondary', p.secondary);
+  r.setProperty('--accent', p.accent);
+  r.setProperty('--background', p.background);
+  r.setProperty('--surface', p.surface);
+  r.setProperty('--text', p.text);
+  r.setProperty('--muted', p.muted);
+  const cb = parseInt(p.primary.slice(1),16);
+  const lum = (0.299*((cb>>16)&255) + 0.587*((cb>>8)&255) + 0.114*(cb&255)) / 255;
+  r.setProperty('--on-primary', lum > 0.55 ? '#0b1220' : '#ffffff');
+}
+function show(screen){
+  ['login','register','app'].forEach(s => $('scr-'+s).classList.remove('active'));
+  $('scr-'+screen).classList.add('active');
+  if(screen==='app'){ renderTabs(); }
+}
+function toast(msg){ $('toast-txt').textContent = msg; $('toast').classList.add('show'); setTimeout(()=>$('toast').classList.remove('show'), 2200); }
+
+/* ============================== auth ============================== */
+function doLogin(){
+  const e = $('login-email').value.trim(), p = $('login-pass').value;
+  if(!e || !p){ $('login-err').textContent = 'Email et mot de passe requis.'; return; }
+  $('login-err').textContent = '';
+  // démo : secteur Tech pour montrer le thème dynamique
+  setSector('Technology');
+  show('app');
+}
+function doRegister(){
+  if(!industryCode){ $('reg-err').textContent = 'Veuillez sélectionner votre secteur d\'activité.'; return; }
+  const n = $('reg-name').value.trim(), e = $('reg-email').value.trim(), p = $('reg-pass').value;
+  if(!n || !e || p.length < 6){ $('reg-err').textContent = 'Nom, email et mot de passe (6+ caractères) sont requis.'; return; }
+  $('reg-err').textContent = '';
+  show('app');
+}
+function setSector(code){
+  industryCode = code;
+  const ind = INDUSTRIES.find(i => i.code === code);
+  if(ind){ applyPalette(ind.p); $('sector-badge').textContent = ind.label; }
+  document.querySelectorAll('#industry-chips .chip').forEach(c => c.classList.toggle('sel', c.dataset.code === code));
+}
+function logout(){ show('login'); }
+
+/* ============================== tabs ============================== */
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+  $('fab').style.display = (tab === 'tx') ? 'flex' : 'none';
+  renderTabs();
+}
+function renderTabs(){
+  const c = $('tab-content');
+  if(currentTab==='home') c.innerHTML = homeHTML();
+  if(currentTab==='tx') c.innerHTML = txHTML();
+  if(currentTab==='graph'){ c.innerHTML = graphHTML(); initGraph(); }
+  if(currentTab==='billing') c.innerHTML = billingHTML();
+}
+
+function homeHTML(){
+  return `
+    <div class="balance">
+      <div class="lbl">Solde disponible</div>
+      <div class="val">1 284 500 €</div>
+      <div class="sub">Dernière opération : +245 000 € (18 août 2026)</div>
+    </div>
+    <div class="row-card" onclick="setTab('tx')">
+      <div><div class="tt">Transactions</div><div class="st">Historique complet, création et suivi en direct</div></div>
+      <div class="ar">→</div>
+    </div>
+    <div class="row-card" onclick="setTab('graph')">
+      <div><div class="tt">Réseau de compensation</div><div class="st">Visualisez les flux entre vos partenaires</div></div>
+      <div class="ar">→</div>
+    </div>
+    <div class="banner"><span class="dot"></span><span class="txt">Mise à jour temps réel effectuée</span></div>
+    <div class="danger" onclick="confirmDelete()">Supprimer mon compte</div>`;
+}
+
+function txHTML(){
+  const rows = tx.map(t => `
+    <div class="tx">
+      <div class="top"><span class="who">${t.from} → ${t.to}</span><span class="amt ${t.amt>0?'in':''}">${fmt(t.amt)}</span></div>
+      <div class="note">${t.note}</div>
+      <div class="meta"><span>${t.date}</span><span class="pill ${t.status==='ok'?'ok':'wait'}">${t.status==='ok'?'RÉGLÉ':'EN ATTENTE'}</span></div>
+    </div>`).join('');
+  return `<div style="padding-top:8px">${rows}</div>`;
+}
+
+function billingHTML(){
+  return `
+    <div style="font-size:22px;font-weight:700;margin:8px 0 16px">Abonnement ClearNet</div>
+    <div class="tier cur"><div><div class="n">Free</div><div class="p">15 transactions / mois</div></div><div class="price">0 €</div></div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--muted)">Tx ce mois (mois civil UTC)</span><span>6 / 15</span></div>
+      <div class="bar"><div style="width:40%"></div></div>
+      <div class="hint">40 % du quota mensuel consommé</div>
+    </div>
+    <button class="btn" onclick="toast('Redirection vers Stripe (démo)')">Passer au niveau supérieur</button>
+    <div style="margin-top:18px;font-size:13px;color:var(--muted)">Formules</div>
+    <div class="tier"><div><div class="n">Essentiel</div><div class="p">50 transactions / mois</div></div><div class="price">49 €</div></div>
+    <div class="tier"><div><div class="n">Pro</div><div class="p">500 transactions / mois</div></div><div class="price">199 €</div></div>
+    <div class="tier"><div><div class="n">Enterprise</div><div class="p">Illimité + SLA dédié</div></div><div class="price">Sur devis</div></div>`;
+}
+
+/* ============================== nouvelle tx ============================== */
+function openNewTx(){
+  modal('Nouvelle transaction',
+    '<div>Envoi de compensation vers un partenaire (démo).</div>',
+    [
+      {label:'Annuler', cls:'cancel', fn: closeModal},
+      {label:'Créer', cls:'', fn:()=>{ tx.unshift({id:Date.now(), from:'Votre entreprise', to:'Partenaire', amt:50000, note:'Compensation', date:'À l\'instant', status:'wait'}); closeModal(); setTab('tx'); toast('Transaction créée (démo)'); }},
+    ]);
+}
+
+/* ============================== suppression ============================== */
+function confirmDelete(){
+  modal('Supprimer mon compte',
+    'Cette action est irréversible : vos données personnelles seront effacées et vous perdrez l\'accès à votre compte.',
+    [
+      {label:'Annuler', cls:'cancel', fn: closeModal},
+      {label:'Supprimer', cls:'danger', fn:()=>{ closeModal(); show('login'); toast('Compte supprimé (démo)'); }},
+    ]);
+}
+function modal(title, msg, acts){
+  $('modal-title').textContent = title;
+  $('modal-msg').innerHTML = msg;
+  $('modal-actions').innerHTML = acts.map(a => `<button class="btn ${a.cls}" onclick="(${a.fn.toString()})()">${a.label}</button>`).join('');
+  $('modal').classList.add('show');
+}
+function closeModal(){ $('modal').classList.remove('show'); }
+
+/* ============================== graph (force) ============================== */
+function graphHTML(){
+  return `<div class="graph-wrap"><svg id="graph"></svg><div class="graph-hint">Glissez les nœuds · les flux représentent la compensation</div></div>`;
+}
+const G = {
+  nodes:[
+    {id:0,l:'Air France'},{id:1,l:'ADP'},{id:2,l:'TotalEnergies'},{id:3,l:'EDF'},
+    {id:4,l:'Sanofi'},{id:5,l:'BioMérieux'},{id:6,l:'Thales'},{id:7,l:'Dassault'},
+    {id:8,l:'CMA CGM'},{id:9,l:'Marseille'},
+  ],
+  edges:[ [0,1,245000],[2,3,890500],[4,5,120300],[6,7,3200000],[8,9,560000],[1,8,120000],[3,6,410000],[5,2,90000],[9,4,75000],[7,1,180000] ]
+};
+let sim = null;
+function initGraph(){
+  const svg = $('graph'); if(!svg) return;
+  const W = svg.clientWidth || 350, H = svg.clientHeight || 420;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const N = G.nodes.map(n => ({ ...n, x: W/2 + (Math.random()*200-100), y: H/2 + (Math.random()*200-100), vx:0, vy:0 }));
+  const E = G.edges.map(e => ({ a:N[e[0]], b:N[e[1]], amt:e[2] }));
+
+  // rendu
+  const link = svg.appendChild(sel('g'));
+  const flow = svg.appendChild(sel('g'));
+  const node = svg.appendChild(sel('g'));
+  E.forEach(e => { e.line = link.appendChild(sel('line')); e.dot = flow.appendChild(sel('circle')); });
+  N.forEach(n => { n.c = node.appendChild(sel('circle')); n.t = node.appendChild(sel('text')); });
+  function sel(t){ const el = document.createElementNS('http://www.w3.org/2000/svg', t); return el; }
+
+  // physique
+  function tick(){
+    N.forEach(a => { a.x += a.vx; a.y += a.vy; a.vx *= .85; a.vy *= .85;
+      a.x = Math.max(30, Math.min(W-30, a.x)); a.y = Math.max(24, Math.min(H-24, a.y)); });
+    for(let i=0;i<N.length;i++) for(let j=i+1;j<N.length;j++){
+      const dx = N[j].x-N[i].x, dy = N[j].y-N[i].y; let d = Math.hypot(dx,dy)||1;
+      const f = 2200/(d*d); const ux=dx/d, uy=dy/d;
+      N[i].vx -= ux*f*.1; N[i].vy -= uy*f*.1; N[j].vx += ux*f*.1; N[j].vy += uy*f*.1;
+    }
+    E.forEach(e => { const dx = e.b.x-e.a.x, dy=e.b.y-e.a.y, d=Math.hypot(dx,dy)||1;
+      const f = (d-110)*.02; const ux=dx/d, uy=dy/d;
+      e.a.vx += ux*f; e.a.vy += uy*f; e.b.vx -= ux*f; e.b.vy -= uy*f; });
+    const cx=W/2, cy=H/2; N.forEach(n => { n.vx += (cx-n.x)*.004; n.vy += (cy-n.y)*.004; });
+    draw();
+  }
+  function draw(){
+    E.forEach(e => {
+      e.line.setAttribute('x1',e.a.x); e.line.setAttribute('y1',e.a.y);
+      e.line.setAttribute('x2',e.b.x); e.line.setAttribute('y2',e.b.y);
+      e.line.setAttribute('stroke', palette.primary); e.line.setAttribute('stroke-opacity', .35);
+      e.line.setAttribute('stroke-width', Math.max(1, Math.min(5, e.amt/600000)));
+      const t = (Date.now()/1600 + e.a.x*0.01) % 1;
+      e.dot.setAttribute('cx', e.a.x + (e.b.x-e.a.x)*t);
+      e.dot.setAttribute('cy', e.a.y + (e.b.y-e.a.y)*t);
+      e.dot.setAttribute('r', 3); e.dot.setAttribute('fill', palette.accent);
+    });
+    N.forEach(n => {
+      n.c.setAttribute('cx',n.x); n.c.setAttribute('cy',n.y);
+      n.c.setAttribute('r', 9 + (n.id===0?4:0));
+      n.c.setAttribute('fill', n.id===0 ? palette.primary : palette.surface);
+      n.c.setAttribute('stroke', palette.primary); n.c.setAttribute('stroke-width', 2);
+      n.t.setAttribute('x', n.x); n.t.setAttribute('y', n.y + 26);
+      n.t.setAttribute('text-anchor','middle'); n.t.setAttribute('fill', palette.text);
+      n.t.setAttribute('font-size','11'); n.t.textContent = n.l;
+    });
+  }
+  // drag
+  let drag = null;
+  svg.addEventListener('pointerdown', ev => {
+    const p = pt(ev); let best=null, bd=1e9;
+    N.forEach(n => { const d = Math.hypot(n.x-p.x, n.y-p.y); if(d<bd && d<26){ bd=d; best=n; } });
+    if(best){ drag = best; svg.setPointerCapture(ev.pointerId); }
+  });
+  svg.addEventListener('pointermove', ev => { if(drag){ const p = pt(ev); drag.x=p.x; drag.y=p.y; drag.vx=0; drag.vy=0; } });
+  svg.addEventListener('pointerup', () => { drag = null; });
+  function pt(ev){ const r = svg.getBoundingClientRect(); return { x:(ev.clientX-r.left)*W/r.width, y:(ev.clientY-r.top)*H/r.height }; }
+
+  let last = 0;
+  function frame(t){ if(t-last>16){ tick(); last = t; } requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+}
+
+/* ============================== init ============================== */
+(function init(){
+  const chips = $('industry-chips');
+  chips.innerHTML = INDUSTRIES.map(i => `
+    <div class="chip" data-code="${i.code}" onclick="setSector('${i.code}')">
+      <span class="g" style="color:${i.p.primary}">${i.glyph}</span>
+      <span class="l">${i.label}</span>
+    </div>`).join('');
+  applyPalette(palette);
+})();
+</script>
+</body>
+</html>
