@@ -1,6 +1,6 @@
 # ClearNet — Rapport technique complet
 
-**Version : V1.5 (gel `v1.5.0`) · Date : 2026-08-25 · Auteur : équipe technique**
+**Version : V1.5 (gel `v1.5.0`) · Date : 2026-08-25 · Mise à jour : kit pilotes maritime (sandbox + démarchage) · Auteur : équipe technique**
 
 ---
 
@@ -151,6 +151,7 @@ on-chain, application mobile et facturation intégrée.
 | Mobile `tsc --noEmit` + `expo-doctor` | ✅ 21/21 |
 | `expo export` (Hermes) | ✅ 811 modules |
 | Build AAB CI + validation | ✅ 29,4 Mo |
+| Scripts sandbox/import (syntaxe PowerShell) | ✅ validés |
 | Tag de gel | ✅ `v1.5.0` |
 
 ---
@@ -174,9 +175,31 @@ investisseur :
 
 ---
 
-## 9. Références
+## 9. Programme pilote transport maritime (démarchage)
+
+Kit complet livré pour l'objectif « 10 entreprises contactées → ≥ 3 lettres
+d'intention signées en 3 semaines » :
+
+| Élément | Livrable |
+|---|---|
+| Sandbox isolé (Docker, `ENV=sandbox`, ports 8081/8444) | `infrastructure/docker-compose.sandbox.yml` + `.env.sandbox.example` |
+| Seed maritime (10 entreprises, cycles 2/3/4 nœuds) | `scripts/seed-sandbox-maritime.ps1` (idempotent, vérifie `/graph/cycles` + `/transactions/treasury`) |
+| Import CSV → Gateway ERP | `scripts/import-csv-connectors.ps1` + `exemple-import-maritime.csv` (`POST /connectors/events`) |
+| Guide utilisateur + vidéo 2 min | `docs/GUIDE_UTILISATEUR_SANDBOX.md`, `docs/DEMO_SANDBOX_2MIN.md` |
+| Landing page pilotes | `docs/landing-pilote-maritime.html` |
+| Proposition commerciale + FAQ objections | `docs/PROPOSITION_COMMERCIALE_PILOTE_MARITIME.md`, `docs/FAQ_OBJECTIONS_COMMERCIALES.md` |
+| 20 prospects qualifiés + 10 e-mails prêts | `docs/LISTE_20_PROSPECTS_MARITIME.md`, `docs/EMAILS_DEMARCHAGE_10_PILOTES.md` |
+| Lettre d'intention + suivi/KPI | `docs/MODELE_LOI_PILOTE.md`, `docs/SUIVI_DEMARCHAGE_PILOTES.md` |
+
+**Compte de démonstration** : `armateur-cmr@maritime-demo.fr` / `Sandbox2026!`.
+**Lancement sandbox** : `docker compose --env-file infrastructure/.env.sandbox -f infrastructure/docker-compose.sandbox.yml up -d --build` puis `scripts/seed-sandbox-maritime.ps1`.
+
+---
+
+## 10. Références
 
 - Aperçus visuels : `docs/apercu-visuel.html` (FR), `docs/apercu-visuel-en.html` (EN).
 - Déploiement : `docs/DEPLOIEMENT_HTTPS_ET_SDK57.md`, `docs/STORE_SUBMISSION.md`.
 - Investisseurs : `docs/EXECUTIVE_SUMMARY_INVESTISSEURS.md`, `docs/DEMO_VIDEO_3MIN.md`.
+- Feuille de route + packs d'exécution : `docs/FEUILLE_DE_ROUTE_OPERATIONNELLE.md`, `docs/EXECUTION_PACK_*.md`.
 - Historique technique : `docs/RAPPORT_TECHNIQUE.md` (V1.4).
