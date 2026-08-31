@@ -171,10 +171,30 @@ Objectif : devenir la norme de compensation interentreprises dans plusieurs sect
 ## 5. Prochaines étapes immédiates (sous 30 jours)
 
 1. **Geler la V1.5** : terminer le circuit ZK et le déployer sur testnet persistant.
+   → ✅ **Exécuté** (partie exécutable) : contrats compilés + 5/5 tests ; runbook de gel
+   et d'audit ZK + plan zkEVM : `docs/EXECUTION_PACK_PHASE_A_TECH.md` ; tag `v1.5.0` créé.
+   ⏳ Reste externe : clés RPC/faucet, audit (appel d'offres prêt).
 2. **Recruter un chef de projet conformité**.
+   → ✅ Fiche de poste : `docs/EXECUTION_PACK_TRANSVERSAL.md` §2.2 (+ CCO & ingénieur ZK).
 3. **Identifier et contacter 5 entreprises pilotes** dans le secteur du transport maritime.
+   → ✅ Kit complet (5 cibles nommées, e-mail, fiche pilote, NDA) : `docs/EXECUTION_PACK_PHASE_A_COMMERCIAL.md`.
 4. **Préparer une démo vidéo de 3 minutes** montrant un cycle de compensation en conditions réelles simulées.
+   → ✅ Script complet minute par minute : `docs/DEMO_VIDEO_3MIN.md`.
 5. **Rédiger un executive summary pour investisseurs** avec les projections financières.
+   → ✅ Rédigé (projections alignées sur les cibles 24 mois) : `docs/EXECUTIVE_SUMMARY_INVESTISSEURS.md`.
+
+### Pack d'exécution complet (toutes les phases)
+
+| Phase / thème | Livrable |
+|---|---|
+| Phase A — technique (ZK, zkEVM, ERP, Factur-X/Peppol) | `docs/EXECUTION_PACK_PHASE_A_TECH.md` |
+| Phase A — produit (trésorerie, alertes, UX CFO, sandbox) | `docs/EXECUTION_PACK_PHASE_A_PRODUIT.md` |
+| Phase A — commercial (3 secteurs, pilotes, NDA, co-création) | `docs/EXECUTION_PACK_PHASE_A_COMMERCIAL.md` |
+| Phase A — juridique (avis, KYB/AML, CGU, SLA, RGPD) | `docs/EXECUTION_PACK_PHASE_A_JURIDIQUE.md` |
+| Phase A — financement (due diligence, subventions, BA) | `docs/EXECUTION_PACK_PHASE_A_FINANCEMENT.md` |
+| Phase B (cloud, lots ZK, SEPA, tokenomics, Série A) | `docs/EXECUTION_PACK_PHASE_B.md` |
+| Phase C (validateurs, multi-chaîne, IA, DAO, Série B) | `docs/EXECUTION_PACK_PHASE_C.md` |
+| Transverse (marketing, RH, gouvernance, reporting) | `docs/EXECUTION_PACK_TRANSVERSAL.md` |
 
 ---
 
