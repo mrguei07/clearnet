@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { ONCHAIN_QUEUE } from '../transactions/transaction.processor';
+import { ONCHAIN_QUEUE } from '../transactions/transaction.constants';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 

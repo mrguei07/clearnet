@@ -5,7 +5,8 @@ import { MetricsModule } from '../metrics/metrics.module';
 import { TransactionsService } from './transactions.service';
 import { TransactionsController } from './transactions.controller';
 import { TransactionGateway } from './transactions.gateway';
-import { TransactionProcessor, ONCHAIN_QUEUE } from './transaction.processor';
+import { TransactionProcessor } from './transaction.processor';
+import { ONCHAIN_QUEUE } from './transaction.constants';
 import { ComplianceModule } from '../compliance/compliance.module';
 import { UsersModule } from '../users/users.module';
 

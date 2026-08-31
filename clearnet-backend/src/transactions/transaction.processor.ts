@@ -8,9 +8,7 @@ import { METRICS_REGISTRY } from '../metrics/metrics.constants';
 import { TransactionGateway } from './transactions.gateway';
 import { TransactionsService } from './transactions.service';
 import { QueueMetrics } from './queue.metrics';
-
-/** Nom de la file BullMQ des règlements on-chain (V1.3, industrialisation). */
-export const ONCHAIN_QUEUE = 'onchain-settlement';
+import { ONCHAIN_QUEUE } from './transaction.constants';
 
 /** Payload d'un job de règlement — mêmes champs que le déclencheur HTTP. */
 export interface OnchainSettlementJob {

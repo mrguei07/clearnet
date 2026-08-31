@@ -72,7 +72,7 @@ jobs:
 
       - name: Tests (unitaires + intégration BullMQ — Redis fourni)
         working-directory: clearnet-backend
-        run: npm test -- --runInBand
+        run: npm test -- --runInBand --forceExit
         env:
           REDIS_HOST: localhost
           REDIS_PORT: "6379"

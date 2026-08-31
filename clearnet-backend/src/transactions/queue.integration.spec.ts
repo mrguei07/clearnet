@@ -5,7 +5,8 @@ import { Queue } from 'bullmq';
 import * as net from 'net';
 import { TransactionsService } from './transactions.service';
 import { TransactionGateway } from './transactions.gateway';
-import { TransactionProcessor, ONCHAIN_QUEUE } from './transaction.processor';
+import { TransactionProcessor } from './transaction.processor';
+import { ONCHAIN_QUEUE } from './transaction.constants';
 import { NEO4J_DRIVER } from '../neo4j/neo4j.module';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { ComplianceService } from '../compliance/compliance.service';
@@ -242,11 +243,15 @@ describe('File BullMQ — intégration (Redis requis, 3.2)', () => {
       note: 'échec attendu',
     });
 
-    // FAILED écrit dans Neo4j (onchainStatus = 'FAILED' + erreur).
+    // FAILED écrit dans Neo4j (onchainStatus = 'FAILED' + erreur) — la requête
+    // réelle paramètre le statut ($status) ; on accepte aussi la forme littérale.
     await waitFor(
       () =>
         neo4jQueries().some(
-          ([query, params]) => query.includes("t.onchainStatus = 'FAILED'") && params.txId === tx.id,
+          ([query, params]) =>
+            (query.includes("t.onchainStatus = 'FAILED'") ||
+              (query.includes('t.onchainStatus = $status') && params.status === 'FAILED')) &&
+            params.txId === tx.id,
         ),
       15000,
       'écriture FAILED Neo4j',

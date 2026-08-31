@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Counter, Gauge, Histogram, Registry } from 'prom-client';
 import { Queue } from 'bullmq';
 import { METRICS_REGISTRY } from '../metrics/metrics.constants';
-import { ONCHAIN_QUEUE } from './transaction.processor';
+import { ONCHAIN_QUEUE } from './transaction.constants';
 
 /**
  * V1.4 Axe 5 - Métriques BullMQ dédiées (onchain-settlement) :

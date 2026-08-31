@@ -16,7 +16,7 @@ import { BlockchainService } from '../blockchain/blockchain.service';
 import { ComplianceService, OfacProfile } from '../compliance/compliance.service';
 import { UsersService } from '../users/users.service';
 import { TransactionGateway } from './transactions.gateway';
-import { ONCHAIN_QUEUE } from './transaction.processor';
+import { ONCHAIN_QUEUE } from './transaction.constants';
 import { commissionForTier, quotaForTier, SubscriptionTier, upgradeMessage } from '../billing/pricing';
 
 export interface TransactionRecord {

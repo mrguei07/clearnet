@@ -69,7 +69,7 @@ jobs:
           REDIS_PORT: "6379"
           ONCHAIN_ENABLED: "true"
           QUEUE_ENABLED: "true"
-        run: npm test
+        run: npm test -- --forceExit
 
   # ---------------- Mobile ----------------
   lint-mobile:

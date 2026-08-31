@@ -3,7 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Driver, int } from 'neo4j-driver';
 import { NEO4J_DRIVER } from '../neo4j/neo4j.module';
-import { ONCHAIN_QUEUE } from '../transactions/transaction.processor';
+import { ONCHAIN_QUEUE } from '../transactions/transaction.constants';
 
 /**
  * V1.4 Axe 1 - Administration de la file de règlements (DLQ & Retry).
