@@ -327,6 +327,66 @@ export class TransactionsService {
     }
   }
 
+  /**
+   * Tableau de bord de trésorerie (Phase A — docs/EXECUTION_PACK_PHASE_A_PRODUIT.md §1) :
+   * capital immobilisé (> 30 j), trésorerie libérée, économie potentielle
+   * (coût d'opportunité 15 %/an), cycles compensables et estimation de DSO.
+   */
+  async treasury(email: string): Promise<{
+    total_immobilise: number;
+    total_liberes: number;
+    economie_potentielle: number;
+    cycles: { count: number; nettableTotal: number };
+    dsoEstimate: number | null;
+    currency: 'CLRN';
+    calculatedAt: string;
+  }> {
+    const session = this.driver.session();
+    try {
+      const immo = await session.run(
+        `MATCH (me:User {email: $email})-[:SENT]->(t:Transaction)
+         WHERE t.createdAt < datetime() - duration({days: 30})
+         RETURN COALESCE(SUM(t.amount), 0) AS total`,
+        { email },
+      );
+      const lib = await session.run(
+        `MATCH (me:User {email: $email})-[:RECEIVED]->(t:Transaction)
+         RETURN COALESCE(SUM(t.amount), 0) AS total`,
+        { email },
+      );
+      const cyc = await session.run(
+        `MATCH (me:User {email: $email})-[:SENT]->(t1:Transaction)<-[:RECEIVED]-(b:User)
+         MATCH (b)-[:SENT]->(t2:Transaction)<-[:RECEIVED]-(c:User)
+         MATCH (c)-[:SENT]->(t3:Transaction)<-[:RECEIVED]-(me)
+         WHERE b.email <> c.email AND c.email <> me.email AND b.email <> me.email
+         RETURN COUNT(*) AS n, COALESCE(SUM(min([t1.amount, t2.amount, t3.amount])), 0) AS net`,
+        { email },
+      );
+      const rev = await session.run(
+        `MATCH (me:User {email: $email}) RETURN coalesce(me.monthlyRevenue, null) AS mr`,
+        { email },
+      );
+      const immobilise = Number(immo.records[0]?.get('total') ?? 0);
+      const liberes = Number(lib.records[0]?.get('total') ?? 0);
+      const cycleCount = Number(cyc.records[0]?.get('n') ?? 0);
+      const nettableTotal = Number(cyc.records[0]?.get('net') ?? 0);
+      const monthlyRevenue = Number(rev.records[0]?.get('mr') ?? 0) || 0;
+      const dsoEstimate =
+        monthlyRevenue > 0 ? Number(((immobilise / monthlyRevenue) * 30).toFixed(1)) : null;
+      return {
+        total_immobilise: immobilise,
+        total_liberes: liberes,
+        economie_potentielle: Number((immobilise * UsersService.OPPORTUNITY_COST_RATE).toFixed(4)),
+        cycles: { count: cycleCount, nettableTotal },
+        dsoEstimate,
+        currency: 'CLRN',
+        calculatedAt: new Date().toISOString(),
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
   /** Mapping nœud Cypher → TransactionRecord (partagé history/list). */
   private toRecord(record: { get: (key: string) => unknown }): TransactionRecord {
     const raw = record.get('t') as { properties?: Record<string, unknown> };

@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { GraphService, EgoNetwork } from './graph.service';
+import { GraphService, DetectedCycle, EgoNetwork } from './graph.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, CurrentUserPayload } from '../auth/current-user.decorator';
 
@@ -26,5 +26,12 @@ export class GraphController {
       lat ? Number(lat) : undefined,
       lng ? Number(lng) : undefined,
     );
+  }
+
+  /** Cycles de dettes de l'utilisateur (2 et 3 maillons) — Phase A. */
+  @Get('cycles')
+  @UseGuards(JwtAuthGuard)
+  cycles(@CurrentUser() user: CurrentUserPayload): Promise<DetectedCycle[]> {
+    return this.graphService.detectCycles(user.email);
   }
 }

@@ -12,6 +12,10 @@ const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || '';
 const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY || '';
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || '';
 
+// Polygon zkEVM (Phase A — migration cible, docs/EXECUTION_PACK_PHASE_A_TECH.md §2)
+const POLYGON_ZKEVM_RPC_URL = process.env.POLYGON_ZKEVM_RPC_URL || '';
+const POLYGON_ZKEVM_PRIVATE_KEY = process.env.POLYGON_ZKEVM_PRIVATE_KEY || '';
+
 const config: HardhatUserConfig = {
   solidity: {
     version: '0.8.19',
@@ -28,6 +32,10 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: SEPOLIA_RPC_URL,
       accounts: SEPOLIA_PRIVATE_KEY ? [SEPOLIA_PRIVATE_KEY] : [],
+    },
+    polygonZkEvm: {
+      url: POLYGON_ZKEVM_RPC_URL,
+      accounts: POLYGON_ZKEVM_PRIVATE_KEY ? [POLYGON_ZKEVM_PRIVATE_KEY] : [],
     },
   },
   etherscan: {

@@ -20,6 +20,8 @@ import { AdminModule } from './admin/admin.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { BillingModule } from './billing/billing.module';
 import { SignaturesModule } from './signatures/signatures.module';
+import { KybModule } from './kyb/kyb.module';
+import { ConnectorsModule } from './connectors/connectors.module';
 
 @Module({
   imports: [
@@ -51,6 +53,8 @@ import { SignaturesModule } from './signatures/signatures.module';
     ZkProofModule,
     OracleModule,
     GraphModule,
+    KybModule,
+    ConnectorsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RateLimitGuard }],

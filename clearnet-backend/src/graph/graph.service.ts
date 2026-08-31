@@ -34,6 +34,14 @@ export interface EgoNetwork {
   generatedAt: string;
 }
 
+/** Cycle de dettes détecté (Phase A — alertes & trésorerie). */
+export interface DetectedCycle {
+  participants: string[];
+  type: '2-cycle' | '3-cycle';
+  /** Montant maximal compensable en net sur ce cycle. */
+  nettable: number;
+}
+
 const PRINCIPAL_LIMIT = 5;
 const SECONDARY_LIMIT = 3;
 
@@ -169,5 +177,54 @@ export class GraphService {
       oracleEnabled: this.oracleEnabled,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Détection des cycles de dettes impliquant l'utilisateur (Phase A —
+   * recommandations proactives, voir docs/EXECUTION_PACK_PHASE_A_PRODUIT.md §2).
+   * Arêtes orientées débiteur → créancier (SENT/RECEIVED). Retourne les cycles
+   * de longueur 2 (dettes croisées) et 3, triés par montant nettable décroissant.
+   */
+  async detectCycles(email: string): Promise<DetectedCycle[]> {
+    const session = this.driver.session();
+    const cycles: DetectedCycle[] = [];
+    try {
+      const two = await session.run(
+        `MATCH (me:User {email: $email})-[:SENT]->(t1:Transaction)<-[:RECEIVED]-(b:User)
+         MATCH (b)-[:SENT]->(t2:Transaction)<-[:RECEIVED]-(me)
+         WHERE b.email <> me.email
+         RETURN b.email AS second, min([t1.amount, t2.amount]) AS nettable
+         ORDER BY nettable DESC LIMIT 10`,
+        { email },
+      );
+      for (const record of two.records) {
+        const nettable = Number(record.get('nettable') ?? 0);
+        if (nettable > 0) {
+          cycles.push({ participants: [email, record.get('second') as string], type: '2-cycle', nettable });
+        }
+      }
+      const three = await session.run(
+        `MATCH (me:User {email: $email})-[:SENT]->(t1:Transaction)<-[:RECEIVED]-(b:User)
+         MATCH (b)-[:SENT]->(t2:Transaction)<-[:RECEIVED]-(c:User)
+         MATCH (c)-[:SENT]->(t3:Transaction)<-[:RECEIVED]-(me)
+         WHERE b.email <> c.email AND c.email <> me.email AND b.email <> me.email
+         RETURN b.email AS second, c.email AS third, min([t1.amount, t2.amount, t3.amount]) AS nettable
+         ORDER BY nettable DESC LIMIT 10`,
+        { email },
+      );
+      for (const record of three.records) {
+        const nettable = Number(record.get('nettable') ?? 0);
+        if (nettable > 0) {
+          cycles.push({
+            participants: [email, record.get('second') as string, record.get('third') as string],
+            type: '3-cycle',
+            nettable,
+          });
+        }
+      }
+      return cycles.sort((a, b) => b.nettable - a.nettable);
+    } finally {
+      await session.close();
+    }
   }
 }

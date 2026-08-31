@@ -39,6 +39,12 @@ export class TransactionsController {
     return this.transactionsService.balance(user.email);
   }
 
+  /** Tableau de bord de trésorerie (Phase A) — immobilisé/libéré/économie/cycles/DSO. */
+  @Get('treasury')
+  treasury(@CurrentUser() user: CurrentUserPayload) {
+    return this.transactionsService.treasury(user.email);
+  }
+
   @Get('history')
   history(
     @CurrentUser() user: CurrentUserPayload,
