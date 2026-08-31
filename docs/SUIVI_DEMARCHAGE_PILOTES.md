@@ -40,6 +40,7 @@
 - [x] Liste 20 prospects (`LISTE_20_PROSPECTS_MARITIME.md`)
 - [x] 10 e-mails prêts (`EMAILS_DEMARCHAGE_10_PILOTES.md`)
 - [x] Modèle de lettre d'intention (`MODELE_LOI_PILOTE.md`)
+- [x] Guide APK de test interne (EAS `preview` → sandbox) (`APK_TEST_INTERNE.md`)
 - [ ] **Équipe formée** (sandbox + objections) — action humaine
 - [ ] **Envois + appels** — action humaine
 

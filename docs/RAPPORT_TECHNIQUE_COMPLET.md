@@ -190,6 +190,7 @@ d'intention signées en 3 semaines » :
 | Proposition commerciale + FAQ objections | `docs/PROPOSITION_COMMERCIALE_PILOTE_MARITIME.md`, `docs/FAQ_OBJECTIONS_COMMERCIALES.md` |
 | 20 prospects qualifiés + 10 e-mails prêts | `docs/LISTE_20_PROSPECTS_MARITIME.md`, `docs/EMAILS_DEMARCHAGE_10_PILOTES.md` |
 | Lettre d'intention + suivi/KPI | `docs/MODELE_LOI_PILOTE.md`, `docs/SUIVI_DEMARCHAGE_PILOTES.md` |
+| APK de test interne (EAS `preview`, pointe sandbox) | `docs/APK_TEST_INTERNE.md` |
 
 **Compte de démonstration** : `armateur-cmr@maritime-demo.fr` / `Sandbox2026!`.
 **Lancement sandbox** : `docker compose --env-file infrastructure/.env.sandbox -f infrastructure/docker-compose.sandbox.yml up -d --build` puis `scripts/seed-sandbox-maritime.ps1`.
@@ -199,7 +200,7 @@ d'intention signées en 3 semaines » :
 ## 10. Références
 
 - Aperçus visuels : `docs/apercu-visuel.html` (FR), `docs/apercu-visuel-en.html` (EN).
-- Déploiement : `docs/DEPLOIEMENT_HTTPS_ET_SDK57.md`, `docs/STORE_SUBMISSION.md`.
+- Déploiement : `docs/DEPLOIEMENT_HTTPS_ET_SDK57.md`, `docs/STORE_SUBMISSION.md`, `docs/APK_TEST_INTERNE.md`.
 - Investisseurs : `docs/EXECUTIVE_SUMMARY_INVESTISSEURS.md`, `docs/DEMO_VIDEO_3MIN.md`.
 - Feuille de route + packs d'exécution : `docs/FEUILLE_DE_ROUTE_OPERATIONNELLE.md`, `docs/EXECUTION_PACK_*.md`.
 - Historique technique : `docs/RAPPORT_TECHNIQUE.md` (V1.4).
