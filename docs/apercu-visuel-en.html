@@ -319,6 +319,23 @@
         <div class="feature"><span>Dedicated support</span><b id="f4">Yes</b></div>
       </div>
 
+      <div class="screen" id="sc-treasury" hidden>
+        <div class="ttl"><h2>Treasury</h2><span class="logout" onclick="refreshTreasury()">Refresh</span></div>
+        <div class="roi block" id="treasuryEco">
+          <div class="rl">💶 Potential savings (15%/yr)</div>
+          <div class="rv" id="treasuryEcoVal">1,284 €/month</div>
+          <div class="rd">Locked capital × opportunity cost — GET /api/transactions/treasury</div>
+        </div>
+        <div class="tier">
+          <div class="tr"><span>Locked capital (&gt; 30 d)</span><b id="treasuryImmo">98,400 €</b></div>
+          <div class="tr" style="margin-top:10px"><span>Released cash</span><b id="treasuryLib">146,900 €</b></div>
+          <div class="tr" style="margin-top:10px"><span>Nettable cycles</span><b id="treasuryCycles">4 · 240,000 €</b></div>
+          <div class="tr" style="margin-top:10px"><span>Estimated DSO</span><b id="treasuryDso">52 d</b></div>
+        </div>
+        <div class="feature"><span>Proactive cycle alerts</span><b>2 new</b></div>
+        <div class="cta" onclick="toast('ok','PDF export','Treasury report generated (demo)','📄')">Export PDF report</div>
+      </div>
+
       <!-- Notifications (V1.5) -->
       <div class="overlay" id="sc-notifs" hidden>
         <div class="ov-hdr"><span class="ov-back" onclick="closeOverlay()">‹ Back</span><span class="ov-title">Notifications</span></div>
@@ -336,6 +353,7 @@
         <div class="tab" data-tab="transactions"><span class="tgi">≡</span>Transactions<div class="bar"></div></div>
         <div class="tab" data-tab="graph"><span class="tgi">⬢</span>Network<div class="bar"></div></div>
         <div class="tab" data-tab="billing"><span class="tgi">▤</span>Subscription<div class="bar"></div></div>
+        <div class="tab" data-tab="treasury"><span class="tgi">▦</span>Treasury<div class="bar"></div></div>
       </div>
 
       <!-- Modal nouveau paiement -->
@@ -408,6 +426,7 @@
 <div class="toasts" id="toasts"></div>
 <div class="caption">Interactive demo built from the real screens (src/screens, src/constants/industries.ts) — Expo SDK 57 · V1.5 pricing grid (Free / Essentiel / Pro / Enterprise) · account deletion (RGPD / Play Store) · new Notifications &amp; Profile screens.</div>
 <div class="note"><b>Android build (Expo SDK 57):</b> <span style="color:#4ade80">✅ AAB BUILT + VALIDATED via GitHub Actions</span> — <code>app-release.aab</code> (29.4 MB, Play Store) · RN 0.86 / Gradle 9.3.1 / NDK 27.1 / Hermes / New Architecture · iOS IPA via <code>eas build -p ios</code>. See <code>docs/STORE_SUBMISSION.md</code>.</div>
+<div class="note"><b>Backend V1.5 (Phase A) — freeze <code>v1.5.0</code>:</b> new endpoints — <code>POST /api/connectors/events</code> (ERP SAP/Oracle/Dynamics/Odoo, idempotent), <code>GET /api/kyb/status</code> (KYB N0-N3), <code>GET /api/transactions/treasury</code> (Treasury tab on the left), <code>GET /api/graph/cycles</code> (cycle detection) · <b>Polygon zkEVM</b> network added to Hardhat · full report: <code>docs/RAPPORT_TECHNIQUE_COMPLET.md</code>.</div>
 
 <script>
 /* ============================ DONNÉES ============================ */
@@ -750,10 +769,21 @@ function goto(tab){
   const t = document.querySelector(`#tabs .tab[data-tab="${tab}"]`);
   document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.remove("on"));
   t.classList.add("on");
-  ["home","transactions","graph","billing"].forEach(k=>{
+  ["home","transactions","graph","billing","treasury"].forEach(k=>{
     document.getElementById("sc-"+k).hidden = (k !== tab);
   });
   if (tab === 'graph') renderGraph();
+  if (tab === 'treasury') refreshTreasury();
+}
+/* Treasury (Phase A) — mirrors GET /api/transactions/treasury */
+function refreshTreasury(){
+  const eco = document.getElementById("treasuryEcoVal");
+  eco.classList.remove("bump"); void eco.offsetWidth; eco.classList.add("bump");
+  const immo = 98400 + Math.round(Math.random()*5000);
+  document.getElementById("treasuryImmo").textContent = fmtEUR(immo);
+  document.getElementById("treasuryLib").textContent = fmtEUR(146900 + Math.round(Math.random()*9000));
+  document.getElementById("treasuryEcoVal").textContent = fmtEUR(Math.round(immo*0.15/12)) + '/month';
+  document.getElementById("treasuryDso").textContent = (46 + Math.round(Math.random()*8)) + ' d';
 }
 document.getElementById("tabs").addEventListener("click", e => {
   const t = e.target.closest(".tab"); if (t) goto(t.dataset.tab);
