@@ -1,0 +1,94 @@
+# ---------------------------------------------------------------------------
+# ClearNet — SANDBOX pilotes (transport maritime)
+# Instance isolee dediee aux demarchages pilotes (aucun partage de donnees avec
+# la prod). Meme topologie que docker-compose.prod.yml, marquee ENV=sandbox,
+# ports dedies (8081/8444) et seed maritime fourni via scripts/.
+#
+# Lancement :
+#   docker compose --env-file infrastructure/.env.sandbox \
+#     -f infrastructure/docker-compose.sandbox.yml up -d --build
+#   puis : powershell -ExecutionPolicy Bypass -File scripts\seed-sandbox-maritime.ps1
+# ---------------------------------------------------------------------------
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: clearnet-sandbox-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD requis}
+    volumes:
+      - neo4j-sandbox-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: clearnet-sandbox-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-sandbox-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../clearnet-backend
+    container_name: clearnet-sandbox-backend
+    environment:
+      NODE_ENV: production
+      ENV: sandbox
+      PORT: 3000
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET requis}
+      THROTTLE_TTL: 60000
+      THROTTLE_LIMIT: 100
+      # Gateway ERP actif en sandbox (import CSV/API documente)
+      DEMO_API_KEY: ${DEMO_API_KEY:-sandbox-demo-key}
+      BILLING_ENABLED: "false"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: clearnet-sandbox-caddy
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-sandbox.localhost}
+    ports:
+      - "${HTTP_PORT:-8081}:80"
+      - "${HTTPS_PORT:-8444}:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-sandbox-data:/data
+      - caddy-sandbox-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  neo4j-sandbox-data:
+  redis-sandbox-data:
+  caddy-sandbox-data:
+  caddy-sandbox-config:
