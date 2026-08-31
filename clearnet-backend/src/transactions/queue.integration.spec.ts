@@ -10,6 +10,12 @@ import { NEO4J_DRIVER } from '../neo4j/neo4j.module';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { ComplianceService } from '../compliance/compliance.service';
 import { UsersService } from '../users/users.service';
+import { METRICS_REGISTRY } from '../metrics/metrics.constants';
+
+// Le test d'intégration exige le pont on-chain + la file actifs (sinon
+// TransactionsService.create() n'enfile aucun job et les assertions expirent).
+process.env.ONCHAIN_ENABLED = 'true';
+process.env.QUEUE_ENABLED = 'true';
 
 /**
  * Test d'INTÉGRATION de la file BullMQ (point de vigilance 3.2) :
@@ -119,11 +125,14 @@ describe('File BullMQ — intégration (Redis requis, 3.2)', () => {
         { provide: ComplianceService, useValue: complianceMock },
         { provide: UsersService, useValue: usersMock },
         { provide: TransactionGateway, useValue: gatewayMock },
+        { provide: METRICS_REGISTRY, useValue: {} },
       ],
     }).compile();
 
     service = app.get(TransactionsService);
     queue = app.get<Queue>(getQueueToken(ONCHAIN_QUEUE));
+    // Démarre le cycle de vie (le worker BullMQ consomme la file) :
+    await app.init();
   });
 
   afterAll(async () => {

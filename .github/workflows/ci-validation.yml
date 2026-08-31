@@ -45,6 +45,7 @@ jobs:
   backend:
     name: Backend build + tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       redis:
         image: redis:7-alpine
@@ -75,3 +76,5 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: "6379"
+          ONCHAIN_ENABLED: "true"
+          QUEUE_ENABLED: "true"

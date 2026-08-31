@@ -44,6 +44,7 @@ jobs:
   test-backend:
     name: Tests backend (Jest + BullMQ/Redis)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       redis:
         image: redis:7-alpine
@@ -66,6 +67,8 @@ jobs:
         env:
           REDIS_HOST: localhost
           REDIS_PORT: "6379"
+          ONCHAIN_ENABLED: "true"
+          QUEUE_ENABLED: "true"
         run: npm test
 
   # ---------------- Mobile ----------------
