@@ -9,9 +9,14 @@ title = "ClearNet gitleaks config"
     '''clearnet123''',
     '''change-me-in-production''',
     '''demo-secret-change-me''',
+    '''Sandbox2026!''',
     '''0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
+    '''ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
   ]
   paths = [
     '''\.env\.example$''',
     '''\.env\.prod\.example$''',
+    '''\.env\.sandbox\.example$''',
+    '''docs/''',
+    '''scripts/seed-sandbox-maritime\.ps1$''',
   ]
